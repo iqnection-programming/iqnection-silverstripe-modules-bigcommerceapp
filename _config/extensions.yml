@@ -1,0 +1,15 @@
+---
+Name: iqbigcommerceextensions
+---
+SilverStripe\SiteConfig\SiteConfig:
+  extensions:
+    - IQnection\BigCommerceApp\SiteConfig\SiteConfig
+SilverStripe\Security\Member:
+  extensions:
+    - IQnection\BigCommerceApp\Model\Member
+SilverStripe\ORM\DataObject:
+  extensions:
+    - IQnection\BigCommerceApp\ORM\DataObject
+SilverStripe\View\ArrayData:
+  extensions:
+    - IQnection\BigCommerceApp\Extensions\ArrayData

@@ -1,0 +1,10 @@
+---
+Name: iqbigcommerceroutes
+---
+SilverStripe\Control\Director:
+  rules:
+    '_bc/ss': 'IQnection\BigCommerceApp\App\SSAdminRedirect'
+    '_bc/widgets//$Action/$ID': 'IQnection\BigCommerceApp\App\Widgets'
+    '_bc/products//$Action/$ID': 'IQnection\BigCommerceApp\App\Products'
+    '_bc/logs//$Action/$ID': 'IQnection\BigCommerceApp\App\AppLogs'
+    '_bc//$Action/$ID': 'IQnection\BigCommerceApp\App\Main'

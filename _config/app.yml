@@ -1,0 +1,12 @@
+---
+Name: iqbigcommerce
+---
+SilverStripe\Admin\LeftAndMain:
+  frame_options: false
+UncleCheese\Dropzone\FileAttachmentField:
+  track_files: true
+SilverStripe\Core\Injector\Injector:
+  Psr\SimpleCache\CacheInterface.bcCache:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: "bcCache"
