@@ -1,0 +1,22 @@
+{
+	"name": "iqnection-modules/silverstripe-bigcommerceapp",
+	"description": "IQnection SilverStripe BigCommerce App Integration",
+	"type": "silverstripe-vendormodule",
+	"license": "BSD-3-Clause",
+	"keywords": ["iqnection","modules","bigcommerce","silverstripe"],
+	"authors": [
+		{
+			"name": "IQnection",
+            "homepage": "https://www.iqnection.com"
+		}
+	],
+	"require": {
+		"silverstripe/framework": "^4.1",
+		"iqnection-themes/bigcommerceapp": "dev-master"
+	},
+	"autoload": {
+		"psr-4": {
+			"IQnection\\BigCommerceApp\\": "app/src/"
+		}
+	}
+}
