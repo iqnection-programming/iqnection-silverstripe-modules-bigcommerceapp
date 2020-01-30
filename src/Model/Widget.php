@@ -11,7 +11,7 @@
 	
 */
 
-namespace IQnection\BigCommerceApp\Widgets;
+namespace IQnection\BigCommerceApp\Model;
 
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Forms;
@@ -25,30 +25,102 @@ use SilverStripe\View\SSViewer;
 use IQnection\BigCommerceApp\Model\ApiObject;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
-use IQnection\BigCommerceApp\Widgets\WidgetPlacement;
+use IQnection\BigCommerceApp\Entities\WidgetPlacementEntity;
+use SilverStripe\Core\ClassInfo;
+use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 
-class Widget extends ApiObject
+class Widget extends DataObject implements ApiObjectInterface
 {	
-	use \IQnection\BigCommerceApp\Traits\ApiModel;
-
-	private static $client_class = \BigCommerce\Api\v3\Api\WidgetApi::class;
+	private static $extensions = [
+		ApiObject::class
+    ];
 	
 	private static $table_name = 'BCWidget';
-	private static $list_item_class = WidgetListItem::class;
 	private static $template_class = WidgetTemplate::class;
+	private static $entity_class = \IQnection\BigCommerceApp\Entities\WidgetEntity::class;
 	
 	private static $db = [
+		'Active' => 'Boolean',
 		'Description' => 'Text',
 	];
 	
-	private static $has_many = [
-		'ListItems' => WidgetListItem::class
-	];
+	public function Sync()
+	{ }
 	
 	public function getFrontEndFields($params = null)
 	{
 		$fields = parent::getFrontEndFields($params);
+		if (!$this->Exists())
+		{
+			// what kind of widget are we creating
+			$fields->push( Forms\DropdownField::create('WidgetType','Widget Type')
+				->setSource(self::getTypes())
+				->setEmptyString('-- Select --')
+			);
+		}
+		else
+		{
+			$fields->push( Forms\TextField::create('_WidgetType','Widget Type')
+				->setValue($this->singular_name())
+				->setAttribute('disabled','disabled')
+			);
+		}
 		return $fields;
+	}
+	
+	public function getFrontEndRequiredFields(Forms\FieldList &$fields)
+	{
+		$requiredFields = parent::getFrontEndRequiredFields($fields);
+		if (!$this->Exists())
+		{
+			$fields->dataFieldByName('WidgetType')->addExtraClass('required');
+			$requiredFields->addRequiredField('WidgetType'); 
+		}
+		return $requiredFields;
+	}
+	
+	public function loadFromApi($data)
+	{
+		if ($data)
+		{
+			$this->BigID = $data->getUuid();
+		}
+		else
+		{
+			$this->BigID = null;
+		}
+		$this->RawData = (string) $data;
+		return $this;
+	}
+	
+	/**
+	 * Provides the widget collections to the dashboard for management
+	 * Each collection should be in format:
+	 * 	array(
+	 *		'ComponentName' => [Component name], 
+	 *		'Title' => [Collection Title], 
+	 *		'Items' => [Collection Items]
+	 *	)
+	 * @returns object ArrayList
+	 */
+	protected $_collections;
+	public function Collections()
+	{
+		if (is_null($this->_collections))
+		{
+			$this->_collections = ArrayList::create();
+		}
+		return $this->_collections;
+	}
+	
+	public static function getTypes()
+	{
+		$widgetTypes = [];
+		foreach(ClassInfo::subclassesFor(Widget::class, false) as $key => $widgetType)
+		{
+			$widgetTypes[$key] = $widgetType;
+		}
+		return $widgetTypes;
 	}
 		
 	public function ApiData()
@@ -73,21 +145,14 @@ class Widget extends ApiObject
 					return $widgetTemplate;
 				}
 			}
-			user_error($templateClass.' Not registered with BigCommerce API');
+//			user_error($templateClass.' Not registered with BigCommerce API');
 		}
-		user_error('static::$template_class not declared on class '.get_class($this));
+//		user_error('static::$template_class not declared on class '.get_class($this));
 	}
 	
 	public function buildConfiguration()
 	{
-		$listItems = [];
-		foreach($this->ListItems() as $listItem)
-		{
-			$listItems[] = $listItem->WidgetData();
-		}
-		return [
-			'list_items' => $listItems
-		];
+		return [];
 	}
 	
 	public function WidgetTemplateClass()
@@ -106,7 +171,7 @@ class Widget extends ApiObject
 		if (is_null($this->_placements))
 		{
 			try {
-				$this->_placements = WidgetPlacement::PlacementsForWidget($this->BigID);
+				$this->_placements = WidgetPlacementEntity::PlacementsForWidget($this->BigID);
 			} catch (\Exception $e) {
 				
 			}
@@ -114,38 +179,9 @@ class Widget extends ApiObject
 		return $this->_placements;
 	}
 	
-	protected static $_is_pushing = false;
-	public function sync($data)
-	{
-		try {
-			$Client = $this->ApiClient();
-			$request = new WidgetRequest( $data );
-			BcLog::info('Widget Data for: '.$this->BigID, $request);
-			if (trim($this->BigID))
-			{
-				$widget = $Client->updateWidget($this->BigID, $request )->getData();
-				BcLog::info('Updated Widget', $this->BigID);
-			}
-			else
-			{
-				$widget = $Client->createWidget( $request )->getData();	
-				$this->BigID = $widget->getUuid();			
-				BcLog::info('Created Widget ',$widget);
-			}
-			return $widget;
-		} catch (\Exception $e) {
-			BcLog::error('Exception syncing widget', $e->__toString());
-			return false;
-		}
-	}
-	
 	public function validate()
 	{
 		$result = parent::validate();
-		if (!$this->Template()->Exists())
-		{
-//			$result->addFieldError('TemplateID','Please select a template');
-		}
 		return $result;
 	}
 	

@@ -42,7 +42,7 @@ class Main extends Controller
 
 	private static $apps = [
 		'Main' => Main::class,
-		'Products' => Products::class,
+		'Categories' => Categories::class,
 		'Widgets' => Widgets::class,
 		'SilverStripe' => SSAdminRedirect::class,
 		'Logs' => AppLogs::class
@@ -219,6 +219,18 @@ class Main extends Controller
 			user_error(get_class($this)." doesn't have a URL segment declared");
 		}
 		Requirements::customScript('window._search_url = "'.$this->Link('search_api').'";');
+		Requirements::javascript('silverstripe/admin:thirdparty/tinymce/tinymce.min.js');
+		Requirements::css('silverstripe/admin:client/dist/styles/editor.css');
+		Requirements::customScript(
+<<<JS
+tinymce.init({
+        selector: 'textarea.htmleditor',
+        skin: 'silverstripe',
+        max_height: 250,
+        menubar: false
+});
+JS
+		);
 		$this->setDashboardTheme();
 		$this->loadRequirements();
 	}
@@ -481,8 +493,10 @@ class Main extends Controller
 		}
 		if (!$member = Security::getCurrentUser())
 		{
-			return $this->Customise(['Content' => 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
-			Once this is ready, come back and initiate the install process again.'])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
+			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
+			Once this is ready, come back and initiate the install process again.';
+			return Security::permissionFailure($this, $message);
+			return $this->Customise(['Content' => $message])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
 		}
 		$siteconfig = SiteConfig::current_site_config();
 		$code = $this->getRequest()->getVar('code');

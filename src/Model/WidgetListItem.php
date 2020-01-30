@@ -1,13 +1,13 @@
 <?php
 
-namespace IQnection\BigCommerceApp\Widgets;
+namespace IQnection\BigCommerceApp\Model;
 
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
 
-class WidgetListItem extends DataObject
+class WidgetListItem extends DataObject implements \JsonSerializable
 {
 	private static $table_name = 'BCWidgetListItem';
 	
@@ -27,8 +27,12 @@ class WidgetListItem extends DataObject
 	public function getFrontEndFields($params = [])
 	{
 		$fields = parent::getFrontEndFields();
-		$fields->replaceField('WidgetID', Forms\HiddenField::create('WidgetID','')->setValue($this->WidgetID));
 		$fields->replaceField('SortOrder', Forms\HiddenField::create('SortOrder','')->setValue($this->SortOrder));
+		$fields->removeByName('ID');
+		if ($this->Exists())
+		{
+			$fields->push( Forms\HiddenField::create('ComponentID','')->setValue($this->ID) );
+		}
 		return $fields;
 	}
 	
@@ -46,11 +50,22 @@ class WidgetListItem extends DataObject
 		return Forms\RequiredFields::create($requiredFields);
 	}
 	
+	public function jsonSerialize()
+	{
+		$data = $this->WidgetData();
+		if ($data instanceof ArrayData)
+		{
+			return $data->toMap();
+		}
+		return $data;
+	}
+	
 	public function WidgetData()
 	{
-		return [
+		return ArrayData::create([
+			'id' => $this->ID,
 			'title' => $this->Title
-		];
+		]);
 	}
 	
 	public function forTemplate()

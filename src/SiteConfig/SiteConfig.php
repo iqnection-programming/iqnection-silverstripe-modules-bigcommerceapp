@@ -23,27 +23,30 @@ class SiteConfig extends DataExtension
 	public function updateCMSFields(Forms\FieldList $fields)
 	{
 		$fields->removeByName([
-			'BigCommerceStoreHash',
 			'BigCommerceApiAccessToken'
 		]);
 		$fields->findOrMakeTab('Root.Developer.BigCommerce');
-		$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\TextField::create('BigCommerceStoreUrl','BigCommerce Store URL') );
-		if ($url = $this->getBigCommerceInstallUrl())
-		{
-			$linkTitle =  ( ($this->owner->BigCommerceStoreHash) && ($this->owner->BigCommerceApiAccessToken) ) ? 'Reinstall App' : 'Install the BigCommerce App';
-			$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\LiteralField::create('BgInstall','<div><p><a href="'.$url.'" class="btn btn-primary" target="_blank">'.$linkTitle.'</a></p></div>') );
-		}
-		else
+
+		$fields->addFieldsToTab('Root.Developer.BigCommerce', [
+			Forms\ReadonlyField::create('BigCommerceStoreHash','BigCommerce Store Hash'),
+			Forms\ReadonlyField::create('BigCommerceApiAccessToken','BigCommerce Access Token'),
+			Forms\TextField::create('BigCommerceStoreUrl','BigCommerce Store URL') 
+		]);
+		//if ($url = $this->getBigCommerceInstallUrl())
+//		{
+//			$linkTitle =  ( ($this->owner->BigCommerceStoreHash) && ($this->owner->BigCommerceApiAccessToken) ) ? 'Reinstall App' : 'Install the BigCommerce App';
+//			$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\LiteralField::create('BgInstall','<div><p><a href="'.$url.'" class="btn btn-primary" target="_blank">'.$linkTitle.'</a></p></div>') );
+//		}
+//		else
 		{
 			$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\LiteralField::create('BgInstall','<div><p>Before you can install and connect to BigCommerce, you need to create an app and retrieve a Client ID</p></div>') );
 			$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\LiteralField::create('bcUrls','<div><p>When setting up your BigCommerce App, use the following URLs:<br />
 Auth Callback URL: '.$this->getBigCommerceAuthCallbackUrl().'<br />
 Load Callback URL: '.$this->getBigCommerceLoadCallbackUrl().'<br />
 Uninstall Callback URL: '.$this->getBigCommerceUninstallCallbackUrl().'</p>
-<p>Once your app configuration is setup with values, set the client id in the site configuration files to show the install link<p></div>') );
+<p>Once your app configuration is setup with values, set the client id in the site configuration files and install from teh BigCommerce apps interface<p></div>') );
 		}
 
-//		$fields->addFieldToTab('Root.Developer.BigCommerce', Forms\TextField::create('BigCommerceApiUrl','BigCommerce API URL') );
 	}
 	
 	public function getBigCommerceInstallUrl()

@@ -6,5 +6,6 @@ SilverStripe\Control\Director:
     '_bc/ss': 'IQnection\BigCommerceApp\App\SSAdminRedirect'
     '_bc/widgets//$Action/$ID': 'IQnection\BigCommerceApp\App\Widgets'
     '_bc/products//$Action/$ID': 'IQnection\BigCommerceApp\App\Products'
+    '_bc/categories//$Action/$ID': 'IQnection\BigCommerceApp\App\Categories'
     '_bc/logs//$Action/$ID': 'IQnection\BigCommerceApp\App\AppLogs'
     '_bc//$Action/$ID': 'IQnection\BigCommerceApp\App\Main'

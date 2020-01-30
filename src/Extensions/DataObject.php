@@ -1,6 +1,6 @@
 <?php
 
-namespace IQnection\BigCommerceApp\ORM;
+namespace IQnection\BigCommerceApp\Extensions;
 
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\Forms;
@@ -14,12 +14,7 @@ class DataObject extends DataExtension
 		{
 			$fields->push(Forms\HiddenField::create('ID','')->setValue($this->owner->ID));
 		}
-		
+		$this->owner->invokeWithExtensions('updateDashboardFields',$fields);
 		return $fields;
-	}
-	
-	public function updateDashboardFields(Forms\FieldList $fields)
-	{
-		
 	}
 }

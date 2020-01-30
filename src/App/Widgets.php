@@ -4,17 +4,18 @@
 namespace IQnection\BigCommerceApp\App;
 
 use SilverStripe\Core\Extension;
-use IQnection\BigCommerceApp\Widgets\Widget;
-use IQnection\BigCommerceApp\Widgets\WidgetPlacement;
+use IQnection\BigCommerceApp\Model\Widget;
+use IQnection\BigCommerceApp\Entities\WidgetPlacementEntity;
 use SilverStripe\Forms;
 use SilverStripe\ORM\ValidationException;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\Core\Injector\Injector;
-use IQnection\BigCommerceApp\Widgets\WidgetListItem;
-use IQnection\BigCommerceApp\Widgets\WidgetTemplate;
+use IQnection\BigCommerceApp\Model\WidgetListItem;
+use IQnection\BigCommerceApp\Model\WidgetTemplate;
 use IQnection\BigCommerceApp\Client;
 use BigCommerce\Api\v3\Api\WidgetApi;
+use SilverStripe\Core\ClassInfo;
 
 class Widgets extends Main
 {
@@ -27,6 +28,7 @@ class Widgets extends Main
 		'add',
 		'widgetForm',
 		'edit',
+		'edititem',
 		'resync',
 		'listItemForm',
 		'delete',
@@ -38,9 +40,8 @@ class Widgets extends Main
 	];
 	
 	private static $url_handlers = [
-		'items/$WidgetID/item/$ListItemID' => 'item',
-		'items/$WidgetID/deleteitem/$ListItemID' => 'deleteitem',
-		'items/$WidgetID/widgetconfig/$ListItemID' => 'widgetconfig'
+		'edititem/$WidgetID/$ComponentName/$ComponentID' => 'edititem',
+		'deleteitem/$WidgetID/$ComponentName/$ComponentID' => 'deleteitem',
 	];
 	
 	private static $nav_links = [
@@ -186,20 +187,26 @@ class Widgets extends Main
 	{
 		if (is_null($this->_currentWidgetListItem))
 		{
-			if ($id = $this->getRequest()->requestVar('_ListItemID'))
+			if ($id = $this->getRequest()->requestVar('ComponentID'))
 			{
 				$this->_currentWidgetListItem = WidgetListItem::get()->byID($id);
 			}
-			elseif ($id = $this->getRequest()->param('ListItemID'))
+			elseif ($id = $this->getRequest()->param('ComponentID'))
 			{
 				$this->_currentWidgetListItem = WidgetListItem::get()->byID($id);
 			}
 			if (!$this->_currentWidgetListItem)
 			{
 				$widget = $this->currentWidget();
-				if ( ($widget->ListItemClass()) && ($widget = $this->currentWidget()) )
+				if ($widget->Exists())
 				{
-					$this->_currentWidgetListItem = Injector::inst()->create($widget->ListItemClass());
+					if ( ($ComponentCollection = $this->currentComponentCollection()) )
+					{
+						if ($componentClass = $widget->getRelationClass($ComponentCollection->ComponentName))
+						{
+							$this->_currentWidgetListItem = $widget->getComponents($ComponentCollection->ComponentName)->newObject();
+						}
+					}
 				}
 			}
 		}
@@ -210,20 +217,10 @@ class Widgets extends Main
 	{
 		if ($widget = $this->currentWidget())
 		{
-			$widget->syncObject();
+			$widget->Sync();
 			$this->addAlert('Widget Synced');
 		}
 		return $this->redirectBack();
-	}
-	
-	public function edit()
-	{
-		if ($widget = $this->currentWidget())
-		{
-			$widget->syncObject();
-			$this->_currentWidget = $widget;
-		}
-		return $this;
 	}
 	
 	public function widgetForm()
@@ -258,6 +255,21 @@ class Widgets extends Main
 	public function doSaveWidget($data,$form)
 	{
 		$widget = $this->currentWidget();
+		if (!$widget->Exists())
+		{
+			if (!$data['WidgetType'])
+			{
+				$this->addAlert('Please select a widget type','danger');
+				return $this->redirectBack();
+			}
+			$widgetClass = ClassInfo::class_name($data['WidgetType']);
+			if (!class_exists($widgetClass))
+			{
+				$this->addAlert('Invalid widget type','danger');
+				return $this->redirectBack();
+			}
+			$widget = Injector::inst()->create($widgetClass);
+		}
 		$form->saveInto($widget);
 		try {
 			$widget->write();
@@ -301,6 +313,14 @@ class Widgets extends Main
 		}
 		return $this->redirectBack();	
 	}
+		
+	public function currentComponentCollection()
+	{
+		if ( ($componentName = $this->getRequest()->param('ComponentName')) || ($componentName = $this->getRequest()->requestVar('ComponentName')) )
+		{
+			return $this->currentWidget()->Collections()->Find('ComponentName',$componentName);
+		}
+	}
 	
 	public function listItemForm()
 	{
@@ -311,10 +331,6 @@ class Widgets extends Main
 		}		
 		$fields = $listItem->getFrontEndFields();
 		$fields->push( Forms\HiddenField::create('_WidgetID','',$widget->ID));
-		if ($listItem->Exists())
-		{
-			$fields->push( Forms\HiddenField::create('_ListItemID','',$listItem->ID));
-		}		
 		
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSaveListItem','Save')
@@ -338,8 +354,14 @@ class Widgets extends Main
 	{
 		$widget = $this->currentWidget();
 		$listItem = $this->currentWidgetListItem();
-		$listItem->WidgetID = $widget->ID;
+		if (!$componentCollection = $this->currentComponentCollection())
+		{
+			$this->addAlert('Component Relation Not Found','danger');
+			return $this->redirectBack();
+		}
 		$form->saveInto($listItem);
+		
+		$widget->getComponents($componentCollection->ComponentName)->add($listItem);
 		try {
 			$listItem->write();
 			$this->addAlert('Item Saved!');

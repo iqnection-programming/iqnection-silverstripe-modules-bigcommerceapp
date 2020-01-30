@@ -1,6 +1,6 @@
 <?php
 
-namespace IQnection\BigCommerceApp\Widgets;
+namespace IQnection\BigCommerceApp\Entities;
 
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
@@ -12,10 +12,9 @@ use SilverStripe\Core\Injector\Injector;
 use BigCommerce\Api\v3\Model\PlacementRequest;
 use SilverStripe\ORM\FieldType;
 
-class WidgetPlacement extends ArrayData
+class WidgetPlacementEntity extends Entity
 {
-	use \IQnection\BigCommerceApp\Traits\ApiModel,
-		\IQnection\BigCommerceApp\Traits\Cacheable,
+	use \IQnection\BigCommerceApp\Traits\Cacheable,
 		\SilverStripe\Core\Injector\Injectable,
 		\SilverStripe\Core\Config\Configurable,
 		\IQnection\BigCommerceApp\Traits\Entity;
@@ -27,7 +26,7 @@ class WidgetPlacement extends ArrayData
 		'pages/brand' => [
 			'Name' => 'pages/brand',
 			'Title' => 'Brand',
-			'EntityClass' => Brand::class,
+			'EntityClass' => BrandEntity::class,
 			'Enabled' => true
 		],
 		'pages/brand' => [
@@ -39,19 +38,19 @@ class WidgetPlacement extends ArrayData
 		'pages/category' => [
 			'Name' => 'pages/category',
 			'Title' => 'Category',
-			'EntityClass' => Category::class,
+			'EntityClass' => CategoryEntity::class,
 			'Enabled' => true
 		],
 		'pages/page' => [
 			'Name' => 'pages/page',
 			'Title' => 'Page',
-			'EntityClass' => Page::class,
+			'EntityClass' => PageEntity::class,
 			'Enabled' => false
 		],
 		'pages/product' => [
 			'Name' => 'pages/product',
 			'Title' => 'Product',
-			'EntityClass' => Product::class,
+			'EntityClass' => ProductEntity::class,
 			'Enabled' => true
 		],
 		'pages/cart' => [
@@ -157,7 +156,7 @@ class WidgetPlacement extends ArrayData
 		foreach($placementsData->getData() as $placementData)
 		{
 			$data = $placementData->get();
-			$placements->push(WidgetPlacement::create([
+			$placements->push(WidgetPlacementEntity::create([
 				'api_data' => $data,
 				'BigID' => $data['uuid'],
 				'EntityID' => $data['entity_id'],
@@ -193,7 +192,7 @@ class WidgetPlacement extends ArrayData
 				{
 					$EntityClass = Injector::inst()->get($templateConfig->EntityClass);	
 					$selectionGroup_item->push( Forms\DropdownField::create('Entity['.$templateConfig->Name.'][ID]', $templateConfig->Title)
-						->setSource($EntityClass->forDropdown())
+						->setSource($EntityClass->Entity()->forDropdown())
 						->setEmptyString('-- Select --') );
 				}
 				// get regions on the category template

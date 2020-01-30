@@ -76,6 +76,18 @@ class BigCommerceLog extends DataObject
 		return $log;
 	}
 	
+	public static function exception($title, \Exception $e)
+	{
+		$entry = [];
+		if (method_exists($e, 'getResponseBody'))
+		{
+			$entry['Response Body'] = $e->getResponseBody();
+		}
+		$entry['message'] = $e->getMessage();
+		$entry['trace'] = $e->getTraceAsString();
+		return self::error($title, $entry);
+	}
+	
 	public static function error($title, $entry)
 	{
 		return self::LogEntry($title,$entry,'error');

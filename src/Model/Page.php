@@ -7,8 +7,7 @@ use SilverStripe\View\ArrayData;
 
 class Page
 {
-	use \IQnection\BigCommerceApp\Traits\ApiModel,
-		\IQnection\BigCommerceApp\Traits\Cacheable;
+	use \IQnection\BigCommerceApp\Traits\Cacheable;
 	
 	private static $client_class = null;//\BigCommerce\Api\v3\Api\CatalogApi::class;
 	private static $cache_name = 'bigcommerce-pages';

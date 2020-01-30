@@ -3,11 +3,12 @@
 namespace IQnection\BigCommerceApp\Cron;
 
 use SilverStripe\Dev\BuildTask;
-use IQnection\BigCommerceApp\Widgets\WidgetTemplate;
-use IQnection\BigCommerceApp\Widgets\Widget;
+use IQnection\BigCommerceApp\Model\WidgetTemplate;
+use IQnection\BigCommerceApp\Model\Widget;
 use SilverStripe\Core\Injector\Injector;
 use IQnection\BigCommerceApp\Model\BigCommerceLog as BcLog;
 use SilverStripe\Control\Director;
+use IQnection\BigCommerceApp\Model\Category;
 
 class Sync extends BuildTask
 {
@@ -17,6 +18,44 @@ class Sync extends BuildTask
 	public function run($request)
 	{
 		$this->syncWidgetTemplates();
+		$this->syncCategories();
+	}
+	
+	public function syncCategories()
+	{
+		$this->message('Syncing Records from BigCommerce');
+		$bcCategoryEntity = Category::singleton()->Entity();
+		$this->message('Retrieving BigCommerce Categories');
+		$bcCategories = $bcCategoryEntity::getCategories(true);
+		$this->message($bcCategories->Count().' BigCommerce Categories Found');
+		$this->message('Retrieving Database Categories');
+		$allDbCategoryIDs = Category::get()->Column('ID');
+		$this->message(count($allDbCategoryIDs).' Database Categories Found');
+		$updated = 0;
+		$created = 0;
+		foreach($bcCategories as $bcCategory)
+		{
+			$status = 'Updating';
+			if (!$category = Category::get()->Find('BigID', $bcCategory->id))
+			{
+				$created++;
+				$status = 'Creating';
+				// create the new category
+				$category = Category::create();
+				$category->BigID = $bcCategory->id;
+			}
+			else
+			{
+				$updated++;
+			}
+			$this->message($status.' Category: ['.$bcCategory->id.'] '.$bcCategory->name);
+			$category->loadFromApi($bcCategory);
+			$category->write();
+			sleep(0.5);
+		}
+		$this->message($updated+$created.' Categories Synced');
+		$this->message($updated.' Categories Updated');
+		$this->message($created.' Categories Created');
 	}
 	
 	public function syncWidgetTemplates()

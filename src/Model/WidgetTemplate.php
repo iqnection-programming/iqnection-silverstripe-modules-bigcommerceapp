@@ -17,37 +17,20 @@ use IQnection\BigCommerceApp\Model\ApiObject;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Security\Security;
 use SilverStripe\Control\Director;
+use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 
-class WidgetTemplate extends ApiObject
+class WidgetTemplate extends DataObject implements ApiObjectInterface
 {	
-	use \IQnection\BigCommerceApp\Traits\ApiModel;
+	private static $extensions = [
+		ApiObject::class
+    ];
 	
-	private static $client_class = \BigCommerce\Api\v3\Api\WidgetApi::class;
+	private static $entity_class = \IQnection\BigCommerceApp\Entities\WidgetTemplateEntity::class;
 	
 	private static $table_name = 'BCWidgetTemplate';
 	
 	private static $template_title = 'Base';
 	private static $template_path = null;
-	
-	private static $summary_fields = [
-		'Active.Nice' => 'Active',
-		'Title' => 'Title',
-	];
-	
-	public function CanCreate($member = null, $context = [])
-	{
-		return (($member = Security::getCurrentUser()) && ($member->ID == 1));
-	}
-	
-	public function CanEdit($member = null, $context = [])
-	{
-		return (($member = Security::getCurrentUser()) && ($member->ID == 1));
-	}
-	
-	public function CanDelete($member = null, $context = [])
-	{
-		return (($member = Security::getCurrentUser()) && ($member->ID == 1));
-	}
 	
 	public function getTitle()
 	{
@@ -61,6 +44,21 @@ class WidgetTemplate extends ApiObject
 //			->setSource($this->getListItemClassNames())
 //			->setEmptyString('-- Select --') );
 		return $fields;
+	}
+	
+	public function loadFromApi($data)
+	{
+		if ($data)
+		{
+			$this->BigID = $data->uuid;
+			$this->Title = $data->name;
+		}
+		else
+		{
+			$this->BigID = null;
+		}
+		$this->RawData = json_encode($data);
+		return $this;
 	}
 	
 	public function onBeforeWrite()
@@ -91,12 +89,6 @@ class WidgetTemplate extends ApiObject
 		return $result;
 	}
 	
-	public function loadFromApi($data)
-	{
-		$this->Title = $data->getName();
-		return parent::loadFromApi($data);
-	}
-	
 	public function ApiData()
 	{
 		return [
@@ -105,24 +97,9 @@ class WidgetTemplate extends ApiObject
 		];
 	}
 	
-	protected static $_is_pushing = false;
-	public function sync($data)
-	{
-		$Client = $this->ApiClient();
-		if ($this->BigID)
-		{
-			$template = $Client->updateWidgetTemplate($this->BigID, new WidgetTemplateRequest( $data ) )->getData();
-			BcLog::info('Updated Widget Template', $this->BigID);
-		}
-		else
-		{
-			$template = $Client->createWidgetTemplate( new WidgetTemplateRequest( $data ) )->getData();	
-			$this->BigID = $template->getUuid();			
-			BcLog::info('Created Widget Template ',$template);
-		}
-		return $template;
-	}
-	
+	public function Unlink()
+	{ }
+		
 	public function onBeforeDelete()
 	{
 		parent::onBeforeDelete();
@@ -157,11 +134,9 @@ class WidgetTemplate extends ApiObject
 	protected function cleanHTML($html)
 	{
 		// remove beginng hidden characters
-		$html = preg_replace('/^(\t|\n|\r|\s)+/','',$html);
-		// remove trailing hidden characters
-		$html = preg_replace('/(\t|\n|\r|\s)+$/','',$html);
+		$html = trim($html);
 		// remove multiple tabs
-		$html = preg_replace('/\t{2,}/',"\t",$html);
+		$html = preg_replace('/\t/',"",$html);
 		// remove multiple line breaks
 		$html = preg_replace('/(\n|\r){2,}/',"\n",$html);
 		// set all paths to absolute

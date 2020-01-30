@@ -4,42 +4,134 @@ namespace IQnection\BigCommerceApp\Model;
 
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
+use SilverStripe\ORM\DataObject;
+use IQnection\BigCommerceApp\Model\ApiObjectInterface;
+use IQnection\BigCommerceApp\Model\Product;
 
-class Category
+class Category extends DataObject implements ApiObjectInterface
 {
-	use \IQnection\BigCommerceApp\Traits\ApiModel,
-		\IQnection\BigCommerceApp\Traits\Cacheable,
-		\IQnection\BigCommerceApp\Traits\Entity;
+	use \IQnection\BigCommerceApp\Traits\Cacheable;
 	
-	private static $client_class = \BigCommerce\Api\v3\Api\CatalogApi::class;
-	private static $cache_name = 'bigcommerce-categories';
+	private static $entity_class = \IQnection\BigCommerceApp\Entities\CategoryEntity::class;
 	
-	public function ApiData() {}
+	private static $table_name = 'BCCategory';
 	
-	public function getCategories()
+	private static $extensions = [
+		ApiObject::class
+    ];
+	
+	private static $db = [
+		'description' => 'HTMLText',
+		'position' => 'Int(11)',
+		'ParentID' => 'Int'
+	];
+	
+	private static $many_many = [
+		'Products' => Product::class
+	];
+	
+	private static $default_sort = 'position DESC';
+	
+	public function CanDelete($member = null, $context = []) { return false; }
+	
+	public function getFrontEndFields($params = [])
 	{
-		$cacheName = self::generateCacheKey($this->Config()->get('cache_name'));
-		$cachedData = self::fromCache($cacheName);
-		if ( (!self::isCached($cacheName)) || (!$cachedData) )
-		{
-			$cachedData = ArrayList::create();
-			$apiClient = $this->ApiClient();
-			foreach($apiClient->getCategories()->getData() as $bcCategory)
-			{
-				$cachedData->push($this->buildArrayData($bcCategory));
-			}
-			self::toCache($cacheName, $cachedData);
-		}
-		return $cachedData;
-	}
+		$fields = parent::getFrontEndFields($params);
 		
-	public function forDropdown()
+		$fields->removeByName([
+			'Title',
+			'ParentID',
+			'position'
+		]);
+		
+		$this->extend('updateFrontEndFields',$fields);
+//		$fields->unshift($fields->dataFieldByName('Title')->setAttribute('disabled','disabled'));
+		
+		return $fields;
+	}
+	
+	public function ApiData() 
 	{
-		$cats = [];
-		foreach($this->getCategories() as $bcCategory)
+		$data = [
+			'description' => $this->description,
+			'position' => $this->position,
+			'name' => $this->Title
+		];
+		if ($parent = $this->Parent())
 		{
-			$cats[$bcCategory->id] = $bcCategory->name;
+			$data['parent_id'] = $parent->BigID;
 		}
-		return $cats;
+		if ($this->BigID)
+		{
+			$data['id'] = $this->BigID;
+		}
+		$this->extend('updateApiData',$data);
+		return $data;
+	}
+	
+	public function Parent()
+	{
+		return Category::get()->byID($this->ParentID);
+	}
+	
+	public function Unlink() {}
+	
+	public function loadFromApi($data)
+	{
+		if ($data)
+		{
+			$this->BigID = $data->id;
+			$this->Title = $data->name;
+			$this->description = $data->description;
+			$this->position = $data->position;
+			if ($data->parent_id === 0)
+			{
+				$this->ParentID = 0;
+			}
+			elseif ($data->parent_id)
+			{
+				if ($parent = Category::get()->Find('BigID',$data->parent_id))
+				{
+					$this->ParentID = $parent->ID;
+				}
+			}
+		}
+		else
+		{
+			$this->BigID = null;
+		}
+		return $this;
+	}
+	
+	public function SyncFromApi()
+	{
+		$data = $this->Entity()->getCategoryByID($this->BigID);
+		$this->loadFromApi($data);
+		$this->write();
+		return $this;
+	}
+
+	public function Children()
+	{
+		return self::get()->Filter('ParentID',$this->ID);
+	}
+	
+	public function Breadcrumbs()
+	{
+		$breadcrumbs = $this->Title;
+		if ($parent = $this->Parent())
+		{
+			$breadcrumbs = $parent->Breadcrumbs().' > '.$breadcrumbs;
+		}
+		return $breadcrumbs;
 	}
 }
+
+
+
+
+
+
+
+
+

@@ -2,25 +2,20 @@
 
 namespace IQnection\BigCommerceApp\Model;
 
-use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\DataExtension;
 use SilverStripe\Forms;
+use SilverStripe\Control\Director;
+use SilverStripe\View\ArrayData;
+use SilverStripe\Core\Injector\Injector;
 
-class ApiObject extends DataObject
+class ApiObject extends DataExtension
 {
-	private static $client_class;
-		
-	private static $table_name = 'BCObject';
-	
 	private static $db = [
-		'Active' => 'Boolean',
 		'BigID' => 'Varchar(255)',
 		'Title' => 'Varchar(255)',
 		'RawData' => 'Text',
-	];
-	
-	private static $summary_fields = [
-		'Active.Nice' => 'Active',
-		'Title' => 'Title',
+		'NeedsSync' => 'Boolean',
+		'LastSynced' => 'Datetime'
 	];
 	
 	private static $defaults = [
@@ -32,68 +27,68 @@ class ApiObject extends DataObject
 	];
 	
 	private static $remove_fields = [
-		'RawData'
+		'RawData',
+		'NeedsSync',
+		'LastSynced'
 	];
 	
-	private static $frontend_required_fields = [
-		'Title'
-	];
+	private static $entity_class;
 	
-	public function getCMSFields()
+	private static $frontend_required_fields = [];
+	
+	public function updateCMSFields($fields)
 	{
-		$fields = parent::getCMSFields();
-		if ($removeFields = $this->Config()->get('remove_fields'))
+		if ($removeFields = $this->owner->Config()->get('remove_fields'))
 		{
 			$fields->removeByName($removeFields);
 		}
 		
-		foreach($this->Config()->get('readonly_fields') as $fieldName)
+		foreach($this->owner->Config()->get('readonly_fields') as $fieldName)
 		{
 			if ($field = $fields->dataFieldByName($fieldName))
 			{
 				$fields->replaceField($fieldName, $field->performReadonlyTransformation());
 			}
 		}
-		if ($this->Exists())
+		if ($this->owner->Exists())
 		{
-			$fields->addFieldToTab('Root.RawData', \IQnection\Forms\RawDataField::create('RawData',$this->RawData));
+			$fields->addFieldToTab('Root.RawData', \IQnection\Forms\RawDataField::create('RawData',$this->owner->RawData));
 		}
 		return $fields;
 	}
-	
-	public function loadFromApi($data)
+		
+	public function updateFrontEndFields($fields)
 	{
-		if ($data)
+		if ($removeFields = $this->owner->Config()->get('remove_fields'))
 		{
-			$this->BigID = $data->getUuid();
+			$fields->removeByName($removeFields);
 		}
-		else
-		{
-			$this->BigID = null;
-		}
-		$this->RawData = (string) $data;
-		return $this;
-	}
-	
-	public function getFrontEndFields($params = null)
-	{
-		$fields = parent::getFrontEndFields($params = null);
 		$fields->removeByName(['RawData','BigID','Active','ID']);
-		if ($this->BigID)
+//		$fields->dataFieldByName('Title')->setAttribute('disabled','disabled');
+		if ($this->owner->BigID)
 		{
-			$fields->unshift( Forms\ReadonlyField::create('_BigID','id',$this->BigID) );
+			$fields->unshift( Forms\TextField::create('_BigID','id',$this->owner->BigID)->setAttribute('disabled','disabled') );
 		}
-		if ($this->Exists())
+		if ($this->owner->Exists())
 		{
-			$fields->push( Forms\HiddenField::Create('_ID','')->setValue($this->ID) );
+			$fields->push( Forms\HiddenField::Create('_ID','')
+				->setValue($this->owner->ID) );
+		}
+		if ($this->owner->NeedsSync)
+		{
+			$fields->unshift( Forms\ReadonlyField::create('syncPending','')->setValue('Sync Pending') );
+		}
+		if ($this->owner->Exists())
+		{
+			$fields->unshift( Forms\ReadonlyField::create('LastSynced','')->setValue('Last Synced: '.$this->owner->dbObject('LastSynced')->Nice()) );
 		}
 		return $fields;
 	}
 	
-	public function getFrontEndRequiredFields(Forms\FieldList &$fields)
+	public function getFrontEndRequiredFields(Forms\FieldList $fields)
 	{
 		$requiredFields = [];
-		foreach($this->Config()->get('frontend_required_fields') as $requiredField)
+		foreach($this->owner->Config()->get('frontend_required_fields') as $requiredField)
 		{
 			if ($field = $fields->dataFieldByName($requiredField))
 			{
@@ -101,7 +96,22 @@ class ApiObject extends DataObject
 				$fields->dataFieldByName($requiredField)->addExtraClass('required');
 			}
 		}
-		return Forms\RequiredFields::create($requiredFields);
+		$requiredFields = Forms\RequiredFields::create($requiredFields);
+		$this->owner->extend('updateFrontEndRequiredFields', $requiredFields);
+		return $requiredFields;
+	}
+		
+	public function RawApiData()
+	{
+		if ($data = json_decode($this->owner->RawData))
+		{
+			return ArrayData::create($data);
+		}
+	}
+	
+	public function debugRawData()
+	{
+		return print_r(json_decode($this->owner->RawData),1);
 	}
 	
 	/**
@@ -109,7 +119,54 @@ class ApiObject extends DataObject
 	 */
 	public function Unlink()
 	{
-		user_error('Unlink called in '.get_class($this).', but not implemented');
+		user_error('Unlink called in '.get_class($this->owner).', but not implemented');
+	}
+	
+	public function ApiClient()
+	{
+		if ($inst = $this->owner->Entity())
+		{
+			return $inst->ApiClient();
+		}
+	}
+	
+	public function loadFromApi($data)
+	{
+		$this->owner->RawData = json_encode($data);
+		return $this->owner;
+	}
+	
+	public function Sync() 
+	{
+		$Entity = $this->owner->Entity();
+		$this->owner->invokeWithExtensions('onBeforeSync', $Entity);
+		$Entity->Sync();
+		$this->owner->invokeWithExtensions('onAfterSync', $Entity);
+		$this->owner->loadFromApi($Entity);
+		$this->owner->LastSynced = date('Y-m-d H:i:s');
+		$this->owner->NeedsSync = false;
+		$this->owner->write();
+		return $Entity;
+	}
+	
+	public function NewEntity()
+	{
+		if ($class = $this->owner->Config()->get('entity_class'))
+		{
+			return Injector::inst()->create($class, $this->owner->ApiData());
+		}
+	}
+	
+	public function Entity()
+	{
+		if ($class = $this->owner->Config()->get('entity_class'))
+		{
+			if (is_null($this->owner->_entity))
+			{
+				$this->owner->_entity = $this->owner->NewEntity();
+			}
+		}
+		return $this->owner->_entity;
 	}
 }
 

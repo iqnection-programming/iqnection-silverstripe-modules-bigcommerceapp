@@ -7,11 +7,14 @@ use SilverStripe\Admin\ModelAdmin;
 class BigCommerceModelAdmin extends ModelAdmin 
 {
 	private static $managed_models = [
-		\IQnection\BigCommerceApp\Widgets\Widget::class => [
+		\IQnection\BigCommerceApp\Model\Widget::class => [
 			'title'=>'Widgets'
 		],
-		\IQnection\BigCommerceApp\Widgets\WidgetTemplate::class => [
+		\IQnection\BigCommerceApp\Model\WidgetTemplate::class => [
 			'title'=>'Widget Templates'
+		],
+		\IQnection\BigCommerceApp\Model\Category::class => [
+			'title' => 'Categories'
 		],
 		\IQnection\BigCommerceApp\Model\BigCommerceLog::class => [
 			'title' => 'API Logs'

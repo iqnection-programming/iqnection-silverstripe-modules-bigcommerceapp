@@ -7,8 +7,7 @@ use SilverStripe\View\ArrayData;
 
 class Brand
 {
-	use \IQnection\BigCommerceApp\Traits\ApiModel,
-		\IQnection\BigCommerceApp\Traits\Cacheable,
+	use \IQnection\BigCommerceApp\Traits\Cacheable,
 		\IQnection\BigCommerceApp\Traits\Entity;
 	
 	private static $client_class = \BigCommerce\Api\v3\Api\CatalogApi::class;

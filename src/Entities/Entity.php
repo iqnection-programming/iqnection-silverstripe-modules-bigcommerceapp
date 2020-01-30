@@ -1,78 +1,28 @@
 <?php
 
-namespace IQnection\BigCommerceApp\Traits;
+namespace IQnection\BigCommerceApp\Entities;
 
-use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
-use SilverStripe\Forms;
-use SilverStripe\ORM\ValidationResult;
-use SilverStripe\ORM\ValidationException;
-use IQnection\BigCommerceApp\Client;
 use SilverStripe\Core\Injector\Injector;
+use SilverStripe\ORM\ArrayList;
 
-trait Entity
+class Entity extends ArrayData implements \JsonSerializable
 {
-	public function validate() 
+	public function ApiData() 
 	{
-		return $this->_validate();
-	}
-	
-	public function _validate() 
-	{
-		$result = new ValidationResult();
-		return $result;
+		$data = $this->toMap();
+		if ( (!$data['id']) && ($data['BigID']) )
+		{
+			$data['id'] = $data['BigID'];
+		}
+		$this->extend('updateApiData', $data);
+		return $data;
 	}
 	
 	public function jsonSerialize()
 	{
 		return $this->toMap();
 	}
-	
-	/**
-	 * Syncs/Pushes the entity data with BigCommerce
-	 * @returns object $this
-	 */	
-	public function Sync()
-	{
-		return $this->_sync();
-	}
-	
-	public function _sync() 
-	{
-		$result = $this->validate();
-		if (!$result->isValid())
-		{
-			throw ValidationException::create($result);
-		}
-		return $this;
-	}
-	
-	public function getFrontEndRequiredFields()
-	{
-		return $this->_getFrontEndRequiredFields();
-	}
-	
-	public function _getFrontEndRequiredFields()
-	{
-		return Forms\RequiredFields::create();
-	}
-	
-	public function getFrontEndFields()
-	{
-		return $this->_getFrontEndFields();
-	}
-	
-	public function _getFrontEndFields()
-	{
-		return Forms\FieldList::create();
-	}
-	
-	public function forDropdown()
-	{
-		return [];
-	}
-	
-	public function delete() { }
 	
 	public function loadApiData($data)
 	{
@@ -128,24 +78,4 @@ trait Entity
 		}
 		return $arrayData;
 	}
-	
-	public function ApiClient()
-	{
-		if ($clientClass = $this->Config()->get('client_class'))
-		{
-			return Client::inst()->Api(md5($clientClass), $clientClass);
-		}
-	}
 }
-
-
-
-
-
-
-
-
-
-
-
-

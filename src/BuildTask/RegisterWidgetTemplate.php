@@ -5,11 +5,12 @@ namespace IQnection\BigCommerceApp\BuildTask;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\ClassInfo;
-use IQnection\BigCommerceApp\Widgets\WidgetTemplate;
+use IQnection\BigCommerceApp\Model\WidgetTemplate;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Convert;
 use SilverStripe\Versioned\Versioned;
-
+use SilverStripe\ORM\ArrayList;
+use SilverStripe\View\ArrayData;
 
 class RegisterWidgetTemplate extends BuildTask
 {
@@ -24,6 +25,11 @@ class RegisterWidgetTemplate extends BuildTask
 		if ($sync = $request->getVar('sync'))
 		{
 			$this->syncTemplate($sync);
+			return;
+		}
+		if ($delete = $request->getVar('delete'))
+		{
+			$this->deleteTemplate($delete);
 		}
 		// go through all subclasses of WidgetTemplate and make sure there is a record in teh DB, and it's been registered with BigCommerce
 		$subclasses = ClassInfo::subclassesFor(WidgetTemplate::class, false);
@@ -47,6 +53,51 @@ class RegisterWidgetTemplate extends BuildTask
 				print '<div><a href="?sync='.preg_replace('/\\\\/','-',$subclass).'">Register</a></div>';
 			}
 		}
+		
+		print '<h3>Registered Widget Templates</h3><table>';
+		foreach($this->getBCWidgetTemplates() as $widgetTemplate)
+		{
+			print '<tr>';
+				print '<td>'.$widgetTemplate->uuid.'</td>';
+				print '<td>'.$widgetTemplate->name.'</td>';
+				print '<td>'.$widgetTemplate->date_created.'</td>';
+				print '<td>';
+				if ($dbWidgetTemplate = WidgetTemplate::get()->Find('BigID',$widgetTemplate->uuid))
+				{
+					print 'Database ID: '.$dbWidgetTemplate->ID;
+				}
+				print '</td>';
+				print '<td><a href="?delete='.$widgetTemplate->uuid.'">DELETE</a></td>';
+			print '</tr>';
+		}
+		print '</table>';
+	}
+	
+	public function getBCWidgetTemplates()
+	{
+		$widgetTemplate = \singleton(WidgetTemplate::class);
+		$client = $widgetTemplate->ApiClient();
+		$bcWidgetTemplates = $client->getWidgetTemplates();
+		$widgetTemplateData = ArrayList::create();
+		foreach($bcWidgetTemplates->getData() as $bcWidgetTemplate)
+		{
+			$widgetTemplateData->push(ArrayData::create($bcWidgetTemplate->get()));
+		}
+		return $widgetTemplateData;
+	}
+	
+	protected function deleteTemplate($uuid)
+	{
+		$this->message('Deleting Widget Template: '.$uuid);
+		$entity = Injector::inst()->create(\IQnection\BigCommerceApp\Entities\WidgetTemplateEntity::class);
+		$entity->uuid = $uuid;
+		try {
+			$entity->delete();
+			$this->message('Deleted');
+		} catch (\Exception $e) {
+			$this->message('ERROR');
+			$this->message($e->getMessage());
+		}
 	}
 	
 	protected function syncTemplate($class)
@@ -66,17 +117,19 @@ class RegisterWidgetTemplate extends BuildTask
 			$this->message('No record exists - creating new record');
 			$dbObject = $singleton;
 		}
-		else
+		elseif ($dbObject->BigID)
 		{
 			$this->message('Record exists - updating uuid: '.$dbObject->BigID);
 		}
 		try {
 			$this->message('Writing object');
+			$entity = $dbObject->Sync();
+			$dbObject->loadFromApi($entity);
 			$dbObject->forceChange(true);
 			$dbObject->write();
 		} catch (\Exception $e) {
 			$this->message($e->getMessage(),'Exception');
-			die();
+			$this->message($e->getTraceAsString(), 'Trace');
 		}
 		if ($currentStage != Versioned::LIVE)
 		{
