@@ -7,6 +7,8 @@ use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 use IQnection\BigCommerceApp\Model\Product;
+use SilverStripe\Control\Controller;
+use SilverStripe\SiteConfig\SiteConfig;
 
 class Category extends DataObject implements ApiObjectInterface
 {
@@ -17,7 +19,8 @@ class Category extends DataObject implements ApiObjectInterface
 	private static $table_name = 'BCCategory';
 	
 	private static $extensions = [
-		ApiObject::class
+		ApiObject::class,
+		EntityObject::class
     ];
 	
 	private static $db = [
@@ -124,6 +127,19 @@ class Category extends DataObject implements ApiObjectInterface
 			$breadcrumbs = $parent->Breadcrumbs().' > '.$breadcrumbs;
 		}
 		return $breadcrumbs;
+	}
+	
+	public function Link()
+	{
+		return $this->AbsoluteLink();
+	}
+	
+	public function AbsoluteLink()
+	{
+		if ($RawApiData = $this->RawApiData())
+		{
+			return Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$RawApiData->custom_url->url);
+		}
 	}
 }
 
