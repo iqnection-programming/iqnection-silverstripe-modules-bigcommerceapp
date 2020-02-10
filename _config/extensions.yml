@@ -9,7 +9,7 @@ SilverStripe\Security\Member:
     - IQnection\BigCommerceApp\Model\Member
 SilverStripe\ORM\DataObject:
   extensions:
-    - IQnection\BigCommerceApp\ORM\DataObject
+    - IQnection\BigCommerceApp\Extensions\DataObject
 SilverStripe\View\ArrayData:
   extensions:
     - IQnection\BigCommerceApp\Extensions\ArrayData
