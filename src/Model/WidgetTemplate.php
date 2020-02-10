@@ -1,6 +1,6 @@
 <?php
 
-namespace IQnection\BigCommerceApp\Widgets;
+namespace IQnection\BigCommerceApp\Model;
 
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Forms;

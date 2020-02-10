@@ -18,6 +18,7 @@ use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\PaginatedList;
+use SilverStripe\Forms;
 
 class Main extends Controller
 {
@@ -25,6 +26,7 @@ class Main extends Controller
 	private static $url_segment = '_bc';
 	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
 	private static $theme_name = 'bigcommerceapp';
+	private static $managed_class;
 	
 	private static $allowed_actions = [
 		'index',
@@ -33,15 +35,23 @@ class Main extends Controller
 		'load',
 		'uninstall',
 		'search_api',
+		'recordForm',
+		'relation',
+		'relatedObjectForm',
+		'relationremove',
+		'edit',
 		'_test' => 'ADMIN'
 	];
 	
 	private static $url_handlers = [
-		'notification//$subAction!/$ID!' => 'updateNotification'
+		'notification//$subAction!/$ID!' => 'updateNotification',
+		'edit/$ID/relationremove/$ComponentName!/$RelatedID' => 'relationremove',
+		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation'
 	];
 
 	private static $apps = [
 		'Main' => Main::class,
+		'Products' => Products::class,
 		'Categories' => Categories::class,
 		'Widgets' => Widgets::class,
 		'SilverStripe' => SSAdminRedirect::class,
@@ -223,11 +233,10 @@ class Main extends Controller
 		Requirements::css('silverstripe/admin:client/dist/styles/editor.css');
 		Requirements::customScript(
 <<<JS
-tinymce.init({
-        selector: 'textarea.htmleditor',
-        skin: 'silverstripe',
-        max_height: 250,
-        menubar: false
+$('[data-editor="tinyMCE"]').each(function(){
+	var config = $(this).data('config');
+	config.selector = '#'+$(this).attr('id');
+	tinymce.init(config);
 });
 JS
 		);
@@ -639,5 +648,250 @@ JS
 			}
 		}
 		return false;
+	}
+	
+	/** Inherited Methods for Managing Data **/
+	public function relatedObject()
+	{
+		$record = $this->currentRecord();
+		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
+		if ( (!$ComponentName) || (!$componentClass = $record->getRelationClass($ComponentName)) )
+		{
+			return false;
+		}
+		$components = $record->{$ComponentName}();
+		$objectID = $this->getRequest()->param('RelatedID') ? $this->getRequest()->param('RelatedID') : $this->getRequest()->requestVar('RelatedID');
+		if ($objectID)
+		{
+			$object = $components->byID($objectID);
+		}
+		else
+		{
+			$object = $components->newObject();
+		}
+		return $object;
+	}
+	
+	public function relatedObjectForm()
+	{
+		$relatedObject = $this->relatedObject();
+		$record = $this->currentRecord();
+		if ( ( (!$record) || (!$record->Exists()) ) && (!$record->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($record) && ($record->Exists()) && (!$record->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+		if ( ( (is_object($relatedObject)) && (!$relatedObject->Exists()) ) && (!$relatedObject->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($relatedObject) && ($relatedObject->Exists()) && (!$relatedObject->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+
+		$fields = $relatedObject->getFrontEndFields();
+		
+		$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
+		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
+		if ($fields->dataFieldByName('ComponentName'))
+		{
+			$fields->dataFieldByName('ComponentName')->setValue($ComponentName);
+		}
+		else
+		{
+			$fields->push( Forms\HiddenField::create('ComponentName','')->setValue($ComponentName) );
+		}
+		
+		$actions = Forms\FieldList::create(
+			Forms\FormAction::create('doSaveComponent','Save')
+		);
+		if ( ($relatedObject->Exists()) && ($relatedObject->CanDelete()) )
+		{
+			$actions->push(Forms\FormAction::create('doDeleteComponent','Delete')->addExtraClass('btn-danger ml-2'));
+		}
+		
+		$validator = ($relatedObject->hasMethod('getFrontEndRequiredFields')) ? $relatedObject->getFrontEndRequiredFields($fields) : null;
+		
+		$form = Forms\Form::create(
+			$this,
+			'relatedObjectForm',
+			$fields,
+			$actions,
+			$validator
+		);
+		$form->loadDataFrom($relatedObject);
+		$this->BootstrapForm($form);
+		return $form;
+	}
+	
+	public function doSaveComponent($data, $form)
+	{
+		if (!$component = $this->relatedObject())
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+		}
+		$componentName = $data['ComponentName'];
+		$form->saveInto($component);
+		$component->write();
+		$synced = false;
+		if ($component->hasMethod('Sync'))
+		{
+			try {
+				$entity = $component->Sync();
+				if ($component->hasMethod('loadFromApi'))
+				{
+					$component->loadFromApi($entity);
+				}
+				$synced = true;
+			} catch (\Exception $e) {
+				$this->addAlert(json_encode($e->getResponseBody()),'warning');
+				$this->addAlert($e->getMessage(),'danger');
+				return $this->redirectBack();
+			}
+		}
+		
+		$record->{$componentName}()->add($component);
+		$record->NeedsSync = true;
+		$record->write();
+		
+		$this->addAlert($component->singular_name().' Saved'.($synced ? ' And Synced':''));
+		return $this->redirect($this->Link('edit/'.$record->ID));
+	}
+	
+	public function doDeleteComponent($data,$form)
+	{
+		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+		}
+		$component->delete();
+		$record->NeedsSync = true;
+		$record->write();
+		$this->addAlert($component->singular_name().' Removed');
+		return $this->redirect($this->Link('edit/'.$record->ID));
+	}
+	
+	public function relationremove()
+	{
+		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+		}
+		$component->delete();
+		$record->NeedsSync = true;
+		$record->write();
+		$this->addAlert($component->singular_name().' Removed');
+		return $this->redirect($this->Link('edit/'.$record->ID));
+	}
+		
+	public function relation()
+	{
+		return $this;
+	}
+	
+	protected $_currentRecord;
+	public function currentRecord()
+	{
+		if (is_null($this->_currentRecord))
+		{
+			$managedClass = $this->Config()->get('managed_class');
+			if ($id = $this->getRequest()->param('ID'))
+			{
+				$this->_currentRecord = $managedClass::get()->byID($id);
+			}
+			elseif ($id = $this->getRequest()->requestVar('_ID'))
+			{
+				$this->_currentRecord = $managedClass::get()->byID($id);
+			}
+			elseif ($managedClass::singleton()->CanCreate())
+			{
+				$this->_currentRecord = $managedClass::create();
+			}
+		}
+		return $this->_currentRecord;
+	}
+	
+	public function recordForm()
+	{
+		$record = $this->currentRecord();
+		if ( ( (!$record) || (!$record->Exists()) ) && (!$record->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($record) && ($record->Exists()) && (!$record->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+
+		$fields = $record->getFrontEndFields();
+		
+		$actions = Forms\FieldList::create(
+			Forms\FormAction::create('doSave','Save')
+		);
+		if ( ($record->Exists()) && ($record->CanDelete()) )
+		{
+			$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
+		}
+		
+		$validator = $record->getFrontEndRequiredFields($fields);
+		
+		$form = Forms\Form::create(
+			$this,
+			'recordForm',
+			$fields,
+			$actions,
+			$validator
+		);
+		$form->loadDataFrom($record);
+		$this->BootstrapForm($form);
+		return $form;
+	}
+	
+	public function doSave($data,$form)
+	{
+		$record = $this->currentRecord();
+		if ( ( (!$record) || (!$record->Exists()) ) && (!$record->CanCreate()) )
+		{
+			$this->addAlert('You do not have permission to perform this action','danger');
+			return $this->redirectBack();
+		}
+		if ( ($record) && ($record->Exists()) && (!$record->CanEdit()) )
+		{
+			$this->addAlert('You do not have permission to perform this action','danger');
+			return $this->redirectBack();
+		}
+		$form->saveInto($record);
+		try {
+			$record->write();
+			$message = 'Record Saved';
+			if ( ($record->hasMethod('Sync')) && ($entity = $record->Sync()) )
+			{
+				$message .= ' & Synced';
+			}
+			$this->addAlert($message);
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
+			throw $e;
+		}
+		return $this->redirectBack();
 	}
 }

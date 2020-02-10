@@ -23,7 +23,8 @@ class ApiObject extends DataExtension
 	];
 	
 	private static $readonly_fields = [
-		'BigID'
+		'BigID',
+		'Title'
 	];
 	
 	private static $remove_fields = [
@@ -62,6 +63,14 @@ class ApiObject extends DataExtension
 		if ($removeFields = $this->owner->Config()->get('remove_fields'))
 		{
 			$fields->removeByName($removeFields);
+		}
+		foreach($this->owner->Config()->get('readonly_fields') as $fieldName)
+		{
+			if ($field = $fields->dataFieldByName($fieldName))
+			{
+				$field->setAttribute('disabled','disabled');
+				//$fields->replaceField($fieldName, $field->performReadonlyTransformation());
+			}
 		}
 		$fields->removeByName(['RawData','BigID','Active','ID']);
 //		$fields->dataFieldByName('Title')->setAttribute('disabled','disabled');
@@ -133,6 +142,8 @@ class ApiObject extends DataExtension
 	public function loadFromApi($data)
 	{
 		$this->owner->RawData = json_encode($data);
+		$this->owner->LastSynced = date('Y-m-d H:i:s');
+		$this->owner->NeedsSync = false;
 		return $this->owner;
 	}
 	

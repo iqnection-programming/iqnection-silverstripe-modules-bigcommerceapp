@@ -19,13 +19,14 @@ class Category extends DataObject implements ApiObjectInterface
 	private static $table_name = 'BCCategory';
 	
 	private static $extensions = [
-		ApiObject::class,
-		EntityObject::class
+		ApiObject::class
     ];
 	
 	private static $db = [
 		'description' => 'HTMLText',
-		'position' => 'Int(11)',
+		'sort_order' => 'Int(11)',
+		'layout_file' => 'Varchar(255)',
+		'is_visible' => 'Boolean',
 		'ParentID' => 'Int'
 	];
 	
@@ -33,7 +34,7 @@ class Category extends DataObject implements ApiObjectInterface
 		'Products' => Product::class
 	];
 	
-	private static $default_sort = 'position DESC';
+	private static $default_sort = 'sort_order ASC';
 	
 	public function CanDelete($member = null, $context = []) { return false; }
 	
@@ -44,9 +45,14 @@ class Category extends DataObject implements ApiObjectInterface
 		$fields->removeByName([
 			'Title',
 			'ParentID',
-			'position'
+			'sort_order'
 		]);
-		
+		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
+		if ($base_description = $fields->dataFieldByName('base_description'))
+		{
+			$base_description_config = \SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::get('bigcommerce');
+			$base_description_config = $base_description->setEditorConfig($base_description_config);
+		}
 		$this->extend('updateFrontEndFields',$fields);
 //		$fields->unshift($fields->dataFieldByName('Title')->setAttribute('disabled','disabled'));
 		
@@ -57,7 +63,7 @@ class Category extends DataObject implements ApiObjectInterface
 	{
 		$data = [
 			'description' => $this->description,
-			'position' => $this->position,
+			'sort_order' => $this->sort_order,
 			'name' => $this->Title
 		];
 		if ($parent = $this->Parent())
@@ -86,7 +92,9 @@ class Category extends DataObject implements ApiObjectInterface
 			$this->BigID = $data->id;
 			$this->Title = $data->name;
 			$this->description = $data->description;
-			$this->position = $data->position;
+			$this->sort_order = $data->sort_order;
+			$this->is_visible = $data->is_visible;
+			$this->layout_file = $data->layout_file;
 			if ($data->parent_id === 0)
 			{
 				$this->ParentID = 0;
@@ -103,13 +111,14 @@ class Category extends DataObject implements ApiObjectInterface
 		{
 			$this->BigID = null;
 		}
+		
 		return $this;
 	}
 	
 	public function SyncFromApi()
 	{
 		$data = $this->Entity()->getCategoryByID($this->BigID);
-		$this->loadFromApi($data);
+		$this->invokeWithExtensions('loadFromApi',$data);
 		$this->write();
 		return $this;
 	}

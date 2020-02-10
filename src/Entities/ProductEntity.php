@@ -7,6 +7,7 @@ use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
+use IQnection\BigCommerceApp\Extensions\HasMetafieldEntities;
 
 class ProductEntity extends Entity
 {
@@ -15,6 +16,11 @@ class ProductEntity extends Entity
 	
 	private static $client_class = \BigCommerce\Api\v3\Api\CatalogApi::class;
 	private static $cache_name = 'bigcommerce-product';
+	private static $metafield_class = ProductMetafieldEntity::class;
+	
+	private static $extensions = [
+		HasMetafieldEntities::class
+	];
 	
 	public function ApiData() 
 	{
@@ -49,19 +55,37 @@ class ProductEntity extends Entity
 		return $this;
 	}
 	
-	public static function getProducts($filter = [])
+	public static function getProducts($refresh = false, $filters = [])
 	{
-		$filterKey = md5(json_encode($filter));
-		$cacheName = self::generateCacheKey($this->Config()->get('cache_name').'-'.$filterKey);
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__);
 		$cachedData = self::fromCache($cacheName);
-		if ( (!self::isCached($cacheName)) || (!$cachedData) )
+		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
-			$inst = self::singleton();
 			$cachedData = ArrayList::create();
+			$inst = self::singleton();
 			$apiClient = $inst->ApiClient();
-			foreach($apiClient->getProducts($filter)->getData() as $bcRecord)
+			$page = 1;
+			if (!isset($filters['page']))
 			{
-				$cachedData->push($inst->buildArrayData($bcRecord));
+				$filters['page'] = $page;
+			}
+			if (!isset($filters['limit']))
+			{
+				$filters['limit'] = 100;
+			}
+			$apiResponse = $apiClient->getProducts($filters);
+			$responseMeta = $apiResponse->getMeta();
+			while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
+			{
+				foreach($apiRecords as $apiRecord)
+				{
+					$newInst = Injector::inst()->create(static::class, []);
+					$newInst->loadApiData($apiRecord);
+					$cachedData->push($newInst);
+				}
+				$page++;
+				$filters['page'] = $page;
+				$apiResponse = $apiClient->getCategories($filters);
 			}
 			self::toCache($cacheName, $cachedData);
 		}
@@ -71,6 +95,15 @@ class ProductEntity extends Entity
 	public function Search($filters)
 	{
 		return $this->getProducts($filters);
+	}
+	
+	public function modifiers($refresh = false)
+	{
+		if (!$id = $this->id)
+		{
+			$id = $this->BigID;
+		}
+		return Modifier::getModifiers($id,$refresh);
 	}
 	
 	public static function FeaturedProducts()

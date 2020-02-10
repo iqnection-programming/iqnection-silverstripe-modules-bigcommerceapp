@@ -5,6 +5,7 @@ namespace IQnection\BigCommerceApp\Model;
 use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 use IQnection\BigCommerceApp\Model\Category;
+use IQnection\BigCommerceApp\Extensions\HasMetafields;
 
 class Product extends DataObject implements ApiObjectInterface
 {
@@ -15,7 +16,8 @@ class Product extends DataObject implements ApiObjectInterface
 	private static $table_name = 'BCProduct';
 	
 	private static $extensions = [
-		ApiObject::class
+		ApiObject::class,
+		HasMetafields::class
     ];
 	
 	private static $db = [
@@ -28,6 +30,12 @@ class Product extends DataObject implements ApiObjectInterface
 	];
 	
 	private static $default_sort = 'position ASC';
+	
+	private static $readonly_fields = [
+		'position',
+		'sku'
+	];
+	
 	
 	public function ApiData() 
 	{
@@ -55,6 +63,26 @@ class Product extends DataObject implements ApiObjectInterface
 			$this->Title = $data->name;
 			$this->sku = $data->sku;
 			$this->position = $data->position;
+			if (is_array($data->categories))
+			{
+				$existingCategoryIDs = $this->Categories()->Column('BigID');
+				$diff1 = array_diff($existingCategoryIDs, $data->categories);
+				$diff2 = array_diff($data->categories,$existingCategoryIDs);
+				if ( (count($diff1)) || (count($diff2)) )
+				{
+					$remove = $this->Categories()->Exclude('BigID',$data->categories);
+					if ($remove->Count())
+					{
+						$this->Categories()->removeMany($remove->Column('ID'));
+					}
+					$add = Category::get()->Filter('BigID',$data->categories);
+					if ($add->Count())
+					{
+						$this->Categories()->addMany($add->Column('ID'));
+					}
+				}
+			}
+			$this->LastSynced = date('Y-m-d H:i:s');
 		}
 		else
 		{

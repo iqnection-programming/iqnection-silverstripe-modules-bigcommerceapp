@@ -6,27 +6,25 @@ namespace IQnection\BigCommerceApp\App;
 use SilverStripe\Core\Extension;
 use SilverStripe\Forms;
 use SilverStripe\ORM\ValidationException;
+use SilverStripe\ORM\PaginatedList;
+use IQnection\BigCommerceApp\Model\Product;
+use SilverStripe\View\Requirements;
 
 class Products extends Main
 {
+	private static $managed_class = Product::class;
 	private static $url_segment = '_bc/products';
 	private static $allowed_actions = [
-		'view',
-		'edit'
+		'edit',
+		'resync',
+		'search',
+		'relation'
 	];
 	
 	private static $nav_links = [
 		'Products' => [
 			'path' => '',
-			'icon' => 'th-large',
-			'children' => [
-				'Search' => [
-					'path' => 'search',
-				],
-				'Attached Files' => [
-					'path' => 'files'
-				]
-			]
+			'icon' => 'th-large'
 		]
 	];
 	
@@ -37,75 +35,99 @@ class Products extends Main
 	
 	public function index()
 	{
+		return $this->search();
+	}
+	
+	public function search()
+	{		
+		$products = Product::get();
+		$recordsTotal = $products->Count();
+
+		$search = $this->getRequest()->requestVar('search');
+		if (trim($search['value']))
+		{
+			$products = $products->FilterAny([
+				'sku:PartialMatch' => trim($search['value']),
+				'Title:PartialMatch' => trim($search['value']),
+			]);
+		}
+		if ($orders = $this->getRequest()->requestVar('order'))
+		{
+			$cols = ['ID','BigID','Title','SKU','Created'];
+			foreach($orders as $order)
+			{
+				$col = $cols[$order['column']];
+				$dir = $order['dir'];
+				$products = $products->Sort($col,$dir);
+			}
+		}
+		
+		$finalProductsTotal = $products->Count();
+		$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
+		$start = 0;
+		if ($this->getRequest()->requestVar('start'))
+		{
+			$start = $this->getRequest()->requestVar('start');
+		}
+		$products = $products->Limit($limit,$start);
+		
+		
+		if ($this->getRequest()->isAjax())
+		{
+			$ajaxData = [
+				'data' => [],
+				'draw' => strtotime('now'),
+				'recordsTotal' => $recordsTotal,
+				'recordsFiltered' => $finalProductsTotal,
+			];
+			foreach($products as $product)
+			{
+				$ajaxData['data'][] = [
+					'ID' => $product->ID,
+					'BigID' => $product->BigID,
+					'Title' => $product->Title,
+					'SKU' => $product->sku,
+					'Created' => $product->dbObject('Created')->Nice(),
+					'Actions' => '<a href="'.$this->Link('edit/'.$product->ID).'" class="btn btn-primary btn-sm">Edit</a>'.
+								'<a href="'.$this->Link('resync/'.$product->ID).'" class="btn btn-outline-success btn-sm">Resync</a>'
+				];
+			}
+			header('Content-Type: application/json');
+			print json_encode($ajaxData);
+			die();
+		}
+			
+		Requirements::customScript(
+<<<JS
+(function($){
+"use strict";
+$(document).ready(function(){
+	$("#product-list").dataTable({
+		"processing": true,
+		"serverSide": true,
+		'ordering': false,
+		'pageLength': 100,
+		'deferRender': true,
+		'searchDelay': 750,
+		'columns': [
+			{ 'data': 'ID' },
+			{ 'data': 'BigID' },
+			{ 'data': 'Title' },
+			{ 'data': 'SKU' },
+			{ 'data': 'Created' },
+			{ 'data': 'Actions', 'className': 'text-right', 'orderable': false, 'searchable': false }
+		],
+		"ajax": $("#product-list").data('src')
+	});
+});
+}(jQuery));
+JS
+);
 		return $this->Customise([
-			'Products' => Widget::get()
+			'Products' => $products
 		]);
 	}
 	
-	protected $_currentRecord;
-	public function currentRecord()
-	{
-		if (is_null($this->_currentRecord))
-		{
-			if ($id = $this->getRequest()->param('ID'))
-			{
-				$this->_currentRecord = Widget::get()->byID($id);
-			}
-			elseif ($id = $this->getRequest()->postVar('_ID'))
-			{
-				$this->_currentRecord = Widget::get()->byID($id);
-			}
-			if (!$this->_currentRecord)
-			{
-				$this->_currentRecord = Widget::create();
-			}
-		}
-		return $this->_currentRecord;
-	}
-	
-	public function recordForm()
-	{
-		$widget = $this->currentRecord();
-		$fields = $widget->getFrontEndFields();
-		
-		$actions = Forms\FieldList::create(
-			Forms\FormAction::create('doSave','Save')
-		);
-		if ($widget->Exists())
-		{
-			$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
-		}
-		
-		$validator = $widget->getFrontEndRequiredFields($fields);
-		
-		$form = Forms\Form::create(
-			$this,
-			'widgetForm',
-			$fields,
-			$actions,
-			$validator
-		);
-		$form->loadDataFrom($widget);
-		$this->BootstrapForm($form);
-		return $form;
-	}
-	
-	public function doSave($data,$form)
-	{
-		$record = $this->currentRecord();
-		$form->saveInto($record);
-		try {
-			$record->write();
-		} catch (\Exception $e) {
-			throw $e;
-		}
-		return $this->redirectBack();
-	}
-	
-	public function items()
-	{
-		
-	}
 	
 	
 }

@@ -15,12 +15,12 @@ class CategoryEntity extends Entity
 		\IQnection\BigCommerceApp\Traits\Cacheable;
 	
 	private static $extensions = [
-		\IQnection\BigCommerceApp\Extensions\HasMetafields::class
+		\IQnection\BigCommerceApp\Extensions\HasMetafieldEntities::class
 	];
 	
 	private static $client_class = \BigCommerce\Api\v3\Api\CatalogApi::class;
 	private static $cache_name = 'bigcommerce-categories';
-	private static $metafield_class = \IQnection\BigCommerceApp\Entities\CategoryMetafield::class;
+	private static $metafield_class = CategoryMetafieldEntity::class;
 	
 	public function ApiData() 
 	{

@@ -9,10 +9,10 @@ use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
 use SilverStripe\Core\Injector\Injector;
 
-class CategoryMetafield extends Metafield
+class CategoryMetafieldEntity extends MetafieldEntity
 {
 	private static $client_class = \BigCommerce\Api\v3\Api\CatalogApi::class;
-	private static $owner_resource_name = 'Category';
+	private static $owner_resource_name = 'category';
 	
 	public function Sync() 
 	{

@@ -9,12 +9,39 @@ use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
 use SilverStripe\Core\Injector\Injector;
 
-class Metafield extends Entity
+class MetafieldEntity extends Entity
 {
 	use \IQnection\BigCommerceApp\Traits\Entity;
 	
 	private static $client_class;
 	private static $owner_resource_name;
+	private static $namespace = 'silverstripe';
+	private static $permission_set = 'app_only';	// app_only, read, write
+	private static $description = '';
+	
+	public function ApiData()
+	{
+		$data = $this->toMap();
+		$data['resource_type'] = strtolower($this->Config()->get('owner_resource_name'));
+		if ( (!$data['id']) && ($data['BigID']) )
+		{
+			$data['id'] = $data['BigID'];
+		}
+		if ( (!$data['description']) && ($this->Config()->get('description')) )
+		{
+			$data['description'] = $this->Config()->get('description');
+		}
+		if ( (!$data['permission_set']) && ($this->Config()->get('permission_set')) )
+		{
+			$data['permission_set'] = $this->Config()->get('permission_set');
+		}
+		if ( (!$data['namespace']) && ($this->Config()->get('namespace')) )
+		{
+			$data['namespace'] = $this->Config()->get('namespace');
+		}
+		$this->owner->invokeWithExtensions('updateApiData',$data);
+		return $data;
+	}
 	
 	public function setResourceID($id)
 	{
@@ -53,7 +80,7 @@ class Metafield extends Entity
 		$id = $ownerID;
 		if (is_object($ownerID))
 		{
-			$id = $ownerID->id;
+			$id = ($ownerID->BigID) ? $ownerID->BigID : $ownerID->id;
 		}
 		if (!is_numeric($id))
 		{
