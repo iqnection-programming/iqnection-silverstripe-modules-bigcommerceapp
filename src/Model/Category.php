@@ -9,6 +9,7 @@ use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 use IQnection\BigCommerceApp\Model\Product;
 use SilverStripe\Control\Controller;
 use SilverStripe\SiteConfig\SiteConfig;
+use IQnection\BigCommerceApp\Archive\Archivable;
 
 class Category extends DataObject implements ApiObjectInterface
 {
@@ -19,7 +20,8 @@ class Category extends DataObject implements ApiObjectInterface
 	private static $table_name = 'BCCategory';
 	
 	private static $extensions = [
-		ApiObject::class
+		ApiObject::class,
+		Archivable::class
     ];
 	
 	private static $db = [
@@ -45,7 +47,9 @@ class Category extends DataObject implements ApiObjectInterface
 		$fields->removeByName([
 			'Title',
 			'ParentID',
-			'sort_order'
+			'sort_order',
+			'is_visible',
+			'layout_file'
 		]);
 		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
 		if ($base_description = $fields->dataFieldByName('base_description'))
@@ -85,16 +89,12 @@ class Category extends DataObject implements ApiObjectInterface
 	
 	public function Unlink() {}
 	
-	public function loadFromApi($data)
+	public function loadApiData($data)
 	{
 		if ($data)
 		{
 			$this->BigID = $data->id;
 			$this->Title = $data->name;
-			$this->description = $data->description;
-			$this->sort_order = $data->sort_order;
-			$this->is_visible = $data->is_visible;
-			$this->layout_file = $data->layout_file;
 			if ($data->parent_id === 0)
 			{
 				$this->ParentID = 0;
@@ -111,14 +111,14 @@ class Category extends DataObject implements ApiObjectInterface
 		{
 			$this->BigID = null;
 		}
-		
+		$this->invokeWithExtensions('updateLoadFromApi',$data);
 		return $this;
 	}
 	
 	public function SyncFromApi()
 	{
 		$data = $this->Entity()->getCategoryByID($this->BigID);
-		$this->invokeWithExtensions('loadFromApi',$data);
+		$this->invokeWithExtensions('loadApiData',$data);
 		$this->write();
 		return $this;
 	}
@@ -128,26 +128,43 @@ class Category extends DataObject implements ApiObjectInterface
 		return self::get()->Filter('ParentID',$this->ID);
 	}
 	
+	protected $_crumbs;
 	public function Breadcrumbs()
 	{
-		$breadcrumbs = $this->Title;
-		if ($parent = $this->Parent())
+		if (is_null($this->_crumbs))
 		{
-			$breadcrumbs = $parent->Breadcrumbs().' > '.$breadcrumbs;
+			$breadcrumbs = $this->Title;
+			if ($parent = $this->Parent())
+			{
+				$breadcrumbs = $parent->Breadcrumbs().' > '.$breadcrumbs;
+			}
+			$this->_crumbs = $breadcrumbs;
 		}
-		return $breadcrumbs;
+		return $this->_crumbs;
 	}
 	
-	public function Link()
+	public function DropdownTitle()
 	{
-		return $this->AbsoluteLink();
+		return $this->Breadcrumbs();
 	}
 	
-	public function AbsoluteLink()
+	public function Link($action = null)
 	{
 		if ($RawApiData = $this->RawApiData())
 		{
-			return Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$RawApiData->custom_url->url);
+			$link = Controller::join_links($RawApiData->custom_url->url,$action);
+			$this->extend('updateLink',$link);
+			return $link;
+		}
+	}
+	
+	public function AbsoluteLink($action = null)
+	{
+		if ($link = $this->Link($action))
+		{
+			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$link);
+			$this->extend('updateAbsoluteLink',$link);
+			return $link;
 		}
 	}
 }

@@ -23,6 +23,7 @@ use IQnection\BigCommerceApp\Model\BigCommerceLog as BcLog;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\View\SSViewer;
 use IQnection\BigCommerceApp\Model\ApiObject;
+use IQnection\BigCommerceApp\Model\WidgetPlacement;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
 use IQnection\BigCommerceApp\Entities\WidgetPlacementEntity;
@@ -36,7 +37,7 @@ class Widget extends DataObject implements ApiObjectInterface
     ];
 	
 	private static $table_name = 'BCWidget';
-	private static $template_class = WidgetTemplate::class;
+	private static $template_class; // must be an extension of WidgetTemplate::class;
 	private static $entity_class = \IQnection\BigCommerceApp\Entities\WidgetEntity::class;
 	
 	private static $db = [
@@ -44,27 +45,31 @@ class Widget extends DataObject implements ApiObjectInterface
 		'Description' => 'Text',
 	];
 	
-	public function Sync()
-	{ }
-	
+	private static $has_many = [
+		'Placements' => WidgetPlacement::class
+	];
+		
 	public function getFrontEndFields($params = null)
 	{
 		$fields = parent::getFrontEndFields($params);
+		$fields->dataFieldByName('Description')->setDescription('For internal purposes only');
+		$fields->dataFieldByName('Title')->setDescription('Internal Title - Does NOT display in the store');
 		if (!$this->Exists())
 		{
 			// what kind of widget are we creating
-			$fields->push( Forms\DropdownField::create('WidgetType','Widget Type')
+			$fields->push( Forms\DropdownField::create('ClassName','Widget Type')
 				->setSource(self::getTypes())
 				->setEmptyString('-- Select --')
 			);
 		}
 		else
 		{
-			$fields->push( Forms\TextField::create('_WidgetType','Widget Type')
+			$fields->push( Forms\TextField::create('_ClassName','Widget Type')
 				->setValue($this->singular_name())
 				->setAttribute('disabled','disabled')
 			);
 		}
+		$this->extend('updateFrontEndFields', $fields);
 		return $fields;
 	}
 	
@@ -79,17 +84,26 @@ class Widget extends DataObject implements ApiObjectInterface
 		return $requiredFields;
 	}
 	
-	public function loadFromApi($data)
+	public function CanAddPlacement($member = null, $context = [])
+	{
+		if (!$this->BigID)
+		{
+			return false;
+		}
+		return true;
+	}
+	
+	public function loadApiData($data)
 	{
 		if ($data)
 		{
-			$this->BigID = $data->getUuid();
+			$this->BigID = $data->uuid ? $data->uuid : $data->id;
 		}
 		else
 		{
 			$this->BigID = null;
 		}
-		$this->RawData = (string) $data;
+		$this->invokeWithExtensions('updateLoadFromApi',$data);
 		return $this;
 	}
 	
@@ -118,7 +132,7 @@ class Widget extends DataObject implements ApiObjectInterface
 		$widgetTypes = [];
 		foreach(ClassInfo::subclassesFor(Widget::class, false) as $key => $widgetType)
 		{
-			$widgetTypes[$key] = $widgetType;
+			$widgetTypes[$key] = $widgetType::singleton()->singular_name();
 		}
 		return $widgetTypes;
 	}
@@ -126,11 +140,13 @@ class Widget extends DataObject implements ApiObjectInterface
 	public function ApiData()
 	{
 		$data = [
+			'uuid' => $this->BigID,
 			'name' => $this->Title,
 			'description' => $this->Description,
 			'widget_template_uuid' => $this->WidgetTemplate()->BigID,
 			'widget_configuration' => $this->buildConfiguration()
 		];
+		$this->invokeWithExtensions('updateApiData', $data);
 		return $data;
 	}
 	
@@ -145,9 +161,8 @@ class Widget extends DataObject implements ApiObjectInterface
 					return $widgetTemplate;
 				}
 			}
-//			user_error($templateClass.' Not registered with BigCommerce API');
+			user_error($templateClass.' Not registered with BigCommerce API');
 		}
-//		user_error('static::$template_class not declared on class '.get_class($this));
 	}
 	
 	public function buildConfiguration()
@@ -157,27 +172,79 @@ class Widget extends DataObject implements ApiObjectInterface
 	
 	public function WidgetTemplateClass()
 	{
-		return $this->Config()->get('template_class');
-	}
-	
-	public function ListItemClass()
-	{
-		return $this->Config()->get('list_item_class');
-	}
-	
-	protected $_placements;
-	public function Placements()
-	{
-		if (is_null($this->_placements))
+		if ($class = $this->Config()->get('template_class'))
 		{
-			try {
-				$this->_placements = WidgetPlacementEntity::PlacementsForWidget($this->BigID);
-			} catch (\Exception $e) {
-				
+			return $class;
+		}
+		return false;
+		user_error('static::$template_class not declared on class '.get_class($this));
+	}
+	
+	protected $_bcPlacements;
+	public function BcPlacements($refresh = false)
+	{
+		if (is_null($this->_bcPlacements))
+		{
+			$this->_bcPlacements = ArrayList::create();
+			if ($this->BigID)
+			{
+				$this->_bcPlacements = WidgetPlacementEntity::PlacementsForWidget($this->BigID, $refresh);
 			}
 		}
-		return $this->_placements;
+		return $this->_bcPlacements;
 	}
+	
+	public function SyncPlacements()
+	{
+		if ($this->BigID)
+		{
+			$dbPlacements = $this->Placements();
+			$bcPlacements = $this->BcPlacements(true);
+			$syncedIDs = [];
+			foreach($bcPlacements as $bcPlacement)
+			{
+				if (!$dbPlacement = $dbPlacements->Find('BigID',$bcPlacement->BigID))
+				{
+					if (!$dbPlacement = WidgetPlacement::get()->Find('BigID',$bcPlacement->BigID))
+					{
+						$dbPlacement = WidgetPlacement::create();
+					}
+				}
+				$dbPlacement->loadApiData($bcPlacement);
+				$dbPlacement->write();
+				$this->Placements()->add($dbPlacement);
+				$syncedIDs[] = $dbPlacement->ID;
+			}
+			$removePlacements = $dbPlacements;
+			if (count($syncedIDs))
+			{
+				$removePlacements = $dbPlacements->Exclude('ID',$syncedIDs);
+			}
+			foreach($removePlacements as $removePlacement)
+			{
+				$removePlacement->remove();
+			}
+		}
+		else
+		{
+			$this->Placements()->removeAll();
+		}
+		return $this;
+	}
+		
+//	protected $_placements;
+//	public function Placements()
+//	{
+//		if (is_null($this->_placements))
+//		{
+//			$this->_placements = ArrayList::create();
+//			if ($this->BigID)
+//			{
+//				$this->_placements = WidgetPlacementEntity::PlacementsForWidget($this->BigID);
+//			}
+//		}
+//		return $this->_placements;
+//	}
 	
 	public function validate()
 	{
@@ -197,11 +264,11 @@ class Widget extends DataObject implements ApiObjectInterface
 				BcLog::error('Delete Error', $e->getMessage());
 				throw new \SilverStripe\ORM\ValidationException('Error saving widget: '.$e->getMessage());
 			}
-			if ($this->Exists())
-			{
-				$this->BigID = null;
-				$this->write();
-			}
+		}
+		if ($this->Exists())
+		{
+			$this->BigID = null;
+			$this->write();
 		}
 	}
 	

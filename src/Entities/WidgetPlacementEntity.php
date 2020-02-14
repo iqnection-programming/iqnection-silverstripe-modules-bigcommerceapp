@@ -25,55 +25,110 @@ class WidgetPlacementEntity extends Entity
 	private static $template_files = [
 		'pages/brand' => [
 			'Name' => 'pages/brand',
+			'template_file' => 'pages/brand',
 			'Title' => 'Brand',
 			'EntityClass' => BrandEntity::class,
 			'Enabled' => true
 		],
 		'pages/brand' => [
 			'Name' => 'pages/brands',
+			'template_file' => 'pages/brands',
 			'Title' => 'All Brands',
 			'EntityClass' => false,
 			'Enabled' => true
 		],
 		'pages/category' => [
 			'Name' => 'pages/category',
+			'template_file' => 'pages/category',
 			'Title' => 'Category',
 			'EntityClass' => CategoryEntity::class,
+			'DataObjectClass' => Category::class,
 			'Enabled' => true
 		],
 		'pages/page' => [
 			'Name' => 'pages/page',
+			'template_file' => 'pages/page',
 			'Title' => 'Page',
 			'EntityClass' => PageEntity::class,
 			'Enabled' => false
 		],
 		'pages/product' => [
 			'Name' => 'pages/product',
+			'template_file' => 'pages/product',
 			'Title' => 'Product',
 			'EntityClass' => ProductEntity::class,
+			'DataObjectClass' => Product::class,
 			'Enabled' => true
 		],
 		'pages/cart' => [
 			'Name' => 'pages/cart',
+			'template_file' => 'pages/cart',
 			'Title' => 'Cart',
 			'EntityClass' => false,
 			'Enabled' => true
 		],
 		'pages/home' => [
 			'Name' => 'pages/home',
+			'template_file' => 'pages/home',
 			'Title' => 'Home',
 			'EntityClass' => false,
 			'Enabled' => true
 		],
 		'pages/search' => [
 			'Name' => 'pages/search',
+			'template_file' => 'pages/search',
 			'Title' => 'Search',
 			'EntityClass' => false,
 			'Enabled' => true
 		]
 	];
 	
-	public function ApiData() {}
+	protected $_placementResource;
+	public function getPlacementResource()
+	{
+		if (is_null($this->_placementResource))
+		{
+			$this->_placementResource = false;
+			if ( ($templateConfig = $this->getTemplateConfig()) && ($templateConfig->EntityClass) && ($entityID = $this->entity_id) )
+			{
+				$this->_placementResource = $templateConfig->EntityClass::getById($entityID);
+			}
+		}
+		return $this->_placementResource;
+	}
+	
+	protected $_templateConfig;
+	public function setTemplateConfig($config = null)
+	{
+		$this->_templateConfig = null;
+		if ( (is_string($config)) && ($_config = self::getTemplateFiles()->Find('Name',$config)) )
+		{
+			$config = $_config;
+		}
+		if ($config)
+		{
+			$this->_templateConfig = $config;
+			$this->template_file = $config->Name;
+		}
+		return $this;
+	}
+	
+	public function getTemplateConfig()
+	{
+		if ( (!$this->_templateConfig) && ($this->template_file) )
+		{
+			$this->setTemplateConfig($this->template_file);
+		}
+		return $this->_templateConfig;
+	}
+	
+	public function ApiData() 
+	{
+		$data = $this->toMap();
+		$data['widget_uuid'] = $this->widget_uuid;
+		$this->extend('updateApiData', $data);
+		return $data;
+	}
 	
 	public function validate()
 	{
@@ -93,29 +148,22 @@ class WidgetPlacementEntity extends Entity
 		return $result;
 	}
 	
-	public function sync() 
+	public function Sync() 
 	{
-		$this->_sync();
-		$apiPlacementData = [
-			'widget_uuid' => $this->WidgetBigID,
-			'region' => $this->RegionName,
-			'template_file' => $this->TemplateFile,
-//			'sort_order' => 1,
-			'status' => 'active'
-		];
-		if ($this->EntityID)
-		{
-			$apiPlacementData['entity_id'] = $this->EntityID;
-		}
 		$apiClient = $this->ApiClient();
-		if ($this->BigID)
+		$data = $this->ApiData();
+		$id = $data['BigID'] ? $data['BigID'] : ($data['uuid'] ? $data['uuid'] : ($data['id'] ? $data['id'] : null));
+		$request = new PlacementRequest( $data );
+		if ($id)
 		{
-			return $apiClient->updatePlacement($this->BigID, new PlacementRequest( $apiPlacementData ) );
+			$response = $apiClient->updatePlacement($id, $request );
 		}
 		else
 		{
-			return $apiClient->createPlacement( new PlacementRequest( $apiPlacementData ) );
+			$response = $apiClient->createPlacement( $request );
 		}
+		$this->loadApiData($response->getData());
+		return $this;
 	}
 	
 	public static function getTemplateFiles()
@@ -146,90 +194,64 @@ class WidgetPlacementEntity extends Entity
 		return $cachedData;
 	}
 	
-	public static function PlacementsForWidget($widgetUUID)
+	public static function PlacementsForWidget($widgetUUID, $refresh = false)
 	{
-		$apiClient = self::singleton()->ApiClient();
-		$placementsData = $apiClient->getPlacements([
-			'widget_uuid' => $widgetUUID
-		]);
-		$placements = ArrayList::create();
-		foreach($placementsData->getData() as $placementData)
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__.$widgetUUID);
+		$cachedData = self::fromCache($cacheName);
+		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
-			$data = $placementData->get();
-			$placements->push(WidgetPlacementEntity::create([
-				'api_data' => $data,
-				'BigID' => $data['uuid'],
-				'EntityID' => $data['entity_id'],
-				'Status' => $data['status'],
-				'TemplateFile' => $data['template_file'],
-				'Template' => self::getTemplateFiles()->Find('Name',$data['template_file']),
-				'Region' => $data['region'],
-				'RegionName' => ucwords(preg_replace('/_/',' ',$data['region'])),
-				'SortOrder' => $data['sort_order'],
-				'Created' => FieldType\DBField::create_field(FieldType\DBDatetime::class, $data['date_created']),
-				'LastEdited' => FieldType\DBField::create_field(FieldType\DBDatetime::class, $data['date_modified'])
-			]));
+			$cachedData = ArrayList::create();
+			$inst = self::singleton();
+			$apiClient = $inst->ApiClient();
+			$page = 1;
+			$apiResponse =$apiClient->getPlacements([
+				'widget_uuid' => $widgetUUID
+			]);
+			foreach($apiResponse->getData() as $apiPlacement)
+			{
+				$newInst = Injector::inst()->create(static::class, []);
+				$newInst->loadApiData($apiPlacement);
+				$cachedData->push($newInst);
+			}
+			self::toCache($cacheName, $cachedData);
 		}
-		return $placements;
+		return $cachedData;
 	}
 	
-	public function getFrontEndFields()
+	public function loadApiData($data)
 	{
-		$fields = $this->_getFrontEndFields();
-		$fields->push( Forms\HeaderField::create('pages-header','Page',3)->addExtraClass('mb-0') );
-		$fields->push( $selectionGroup = Forms\SelectionGroup::create('PageType', [])->removeExtraClass('mt-0') );
-		foreach(self::getTemplateFiles()->Filter('Enabled',true) as $templateConfig)
-		{
-			$regions = [];
-			foreach(self::getContentRegions($templateConfig->Name) as $regionRecord)
-			{
-				$regions[$regionRecord->name] = ucwords(preg_replace('/_/',' ',$regionRecord->name));
-			}
-			if (count($regions))
-			{
-				$selectionGroup->push( $selectionGroup_item = Forms\SelectionGroup_Item::create($templateConfig->Name, [], $templateConfig->Title) );
-				if ( ($EntityClass = $templateConfig->EntityClass) && (class_exists($EntityClass)) )
-				{
-					$EntityClass = Injector::inst()->get($templateConfig->EntityClass);	
-					$selectionGroup_item->push( Forms\DropdownField::create('Entity['.$templateConfig->Name.'][ID]', $templateConfig->Title)
-						->setSource($EntityClass->Entity()->forDropdown())
-						->setEmptyString('-- Select --') );
-				}
-				// get regions on the category template
-				$selectionGroup_item->push( Forms\DropdownField::create('Entity['.$templateConfig->Name.'][Region]', 'Region')
-					->setSource($regions)
-					->setEmptyString('-- Select --') );
-			}
-		}
-		return $fields;
+		$this->_loadApiData($data);
+		$this->BigID = $data['uuid'];
+		$this->setTemplateConfig($data['template_file']);
+		return $this;
 	}
 	
-	public function PageTitle()
-	{
-		if ($this->Template)
-		{
-			if ( ($this->Template->EntityClass) && ($this->EntityID) )
-			{
-				$EntityClass = Injector::inst()->get($this->Template->EntityClass);
-				$dropdownOptions = $EntityClass->forDropdown();
-				if (array_key_exists($this->EntityID, $dropdownOptions))
-				{
-					return $dropdownOptions[$this->EntityID];
-				}
-			}
-			return $this->Template->Title;
-		}
-	}
+//	public function PageTitle()
+//	{
+//		if ($this->Template)
+//		{
+//			if ( ($this->Template->EntityClass) && ($this->EntityID) )
+//			{
+//				$EntityClass = Injector::inst()->get($this->Template->EntityClass);
+//				$dropdownOptions = $EntityClass->forDropdown();
+//				if (array_key_exists($this->EntityID, $dropdownOptions))
+//				{
+//					return $dropdownOptions[$this->EntityID];
+//				}
+//			}
+//			return $this->Template->Title;
+//		}
+//	}
 	
 	/**
 	 * API returns null
 	 */
 	public function delete()
 	{
-		if ($this->BigID)
+		if ( ($id = $this->BigID) || ($id = $this->uuid) || ($id = $this->id) )
 		{
-			$apiClient = self::singleton()->ApiClient();
-			return $apiClient->deletePlacement($this->BigID);
+			$apiClient = $this->ApiClient();
+			return $apiClient->deletePlacement($id);
 		}
 	}
 	

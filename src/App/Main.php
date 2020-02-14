@@ -19,9 +19,14 @@ use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\PaginatedList;
 use SilverStripe\Forms;
+use IQnection\BigCommerceApp\Model\Product;
+use IQnection\BigCommerceApp\Model\Category;
+use UncleCheese\Dropzone\FileAttachmentField;
 
 class Main extends Controller
 {
+	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
+	
 	private static $install_url = 'https://login.bigcommerce.com/app/%s/install';
 	private static $url_segment = '_bc';
 	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
@@ -40,6 +45,7 @@ class Main extends Controller
 		'relatedObjectForm',
 		'relationremove',
 		'edit',
+		'sort_items',
 		'_test' => 'ADMIN'
 	];
 	
@@ -76,15 +82,18 @@ class Main extends Controller
 				"assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
 				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
-				"assets/vendor/select2/css/select2.css",
+//				"assets/vendor/select2/css/select2.css",
+				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
 				"css/app.scss"
 			],
 			'js' => [
-				"assets/vendor/jquery/jquery-3.3.1.min.js",
+//				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/libs/js/main-js.js",
-				"assets/vendor/select2/js/select2.min.js",
+//				"assets/vendor/select2/js/select2.min.js",
+				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
+				"assets/vendor/shortable-nestable/Sortable.min.js",
 				"javascript/app.js"
 			]
 		],
@@ -96,10 +105,10 @@ class Main extends Controller
 				"assets/vendor/datatables/css/fixedHeader.bootstrap4.css"
 			],
 			'js' => [
-				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
-				"assets/vendor/datatables/js/buttons.bootstrap4.min.js",
+//				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
+//				"assets/vendor/datatables/js/buttons.bootstrap4.min.js",
 				"assets/vendor/datatables/js/data-table.js",
-				"https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js",
+//				"https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js",
 				"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js",
 				"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js",
 				"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js",
@@ -116,7 +125,7 @@ class Main extends Controller
 			'css' => [],
 			'js' => [
 				"assets/vendor/inputmask/js/jquery.inputmask.bundle.js",
-				"assets/vendor/jquery/jquery-3.3.1.min.js",
+//				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/vendor/parsley/parsley.js",
@@ -228,7 +237,9 @@ class Main extends Controller
 		{
 			user_error(get_class($this)." doesn't have a URL segment declared");
 		}
-		Requirements::customScript('window._search_url = "'.$this->Link('search_api').'";');
+		Requirements::customScript('window._search_url = "'.$this->AbsoluteLink('search_api').'";
+window._sort_url = "'.$this->AbsoluteLink('sort_items').'";');
+		Requirements::javascript("https://code.jquery.com/jquery-3.4.1.min.js");
 		Requirements::javascript('silverstripe/admin:thirdparty/tinymce/tinymce.min.js');
 		Requirements::css('silverstripe/admin:client/dist/styles/editor.css');
 		Requirements::customScript(
@@ -244,18 +255,157 @@ JS
 		$this->loadRequirements();
 	}
 	
-	public function search_api()
+	/**
+	 * common method/action for searching resources
+	 * expects params to pass as follows:
+	 * @param array|object $search = [value => {your search term}, order? => [ [column => {db column}, dir => {sort direction}] ]]
+	 * @param string $resource = categories|category, products|product
+	 * @returns object DataList of search results. If Ajax call, results are out directly from child method
+	 */
+	public function search_api($search = null, $resource = null)
 	{
-		$result = [];
-		if ($call = $this->getRequest()->requestVar('call'))
+		$search = (is_string($search)) ? $search : $this->getRequest()->requestVar('search');
+		$resource = (is_string($resource)) ? $resource : $this->getRequest()->requestVar('resource');
+		switch(strtolower($resource))
 		{
-			list($className, $method) = explode('|',$call);
-			$inst = Injector::inst()->get($className);
-			$results = $inst->$method($this->getRequest());
+			case 'categories':
+			case 'category':
+			{
+				return $this->searchCategories($search);
+				break;
+			}
+			default:
+			case 'products':
+			case 'product':
+			{
+				return $this->searchProducts($search);
+				break;
+			}
 		}
-		return $this->getResponse()
-			->addHeader('Content-Type','application/json')
-			->setBody(json_encode(['results' => $results]));
+	}
+	
+	public function searchCategories($search)
+	{
+		$records = Category::get();
+		$recordsTotal = $records->Count();
+
+		if (trim($search['value']))
+		{
+			$records = $records->FilterAny([
+				'Title:PartialMatch' => trim($search['value']),
+			]);
+		}
+		if ($orders = $this->getRequest()->requestVar('order'))
+		{
+			$cols = ['ID','BigID','Title','Created'];
+			foreach($orders as $order)
+			{
+				$col = $cols[$order['column']];
+				$dir = $order['dir'];
+				$records = $records->Sort($col,$dir);
+			}
+		}
+		
+		$finalRecordsTotal = $records->Count();
+		$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
+		$start = 0;
+		if ($this->getRequest()->requestVar('start'))
+		{
+			$start = $this->getRequest()->requestVar('start');
+		}
+		$records = $records->Limit($limit,$start);
+		
+		
+		if ($this->getRequest()->isAjax())
+		{
+			$ajaxData = [
+				'data' => [],
+				'draw' => strtotime('now'),
+				'recordsTotal' => $recordsTotal,
+				'recordsFiltered' => $finalRecordsTotal,
+			];
+			foreach($records as $record)
+			{
+				$ajaxData['data'][] = [
+					'ID' => $record->ID,
+					'BigID' => $record->BigID,
+					'Title' => $record->Title,
+					'Breadcrumbs' => $record->Breadcrumbs(),
+					'Created' => $record->dbObject('Created')->Nice(),
+					'DropdownText' => $record->Breadcrumbs()
+				];
+			}
+			header('Content-Type: application/json');
+			print json_encode($ajaxData);
+			die();
+		}
+			
+		return $this->Customise([
+			'Categories' => $records
+		]);
+	}
+	
+	public function searchProducts($search)
+	{
+		$products = Product::get();
+		$recordsTotal = $products->Count();
+
+		if (trim($search['value']))
+		{
+			$products = $products->FilterAny([
+				'sku:PartialMatch' => trim($search['value']),
+				'Title:PartialMatch' => trim($search['value']),
+			]);
+		}
+		if ($orders = $this->getRequest()->requestVar('order'))
+		{
+			$cols = ['ID','BigID','Title','SKU','Created'];
+			foreach($orders as $order)
+			{
+				$col = $cols[$order['column']];
+				$dir = $order['dir'];
+				$products = $products->Sort($col,$dir);
+			}
+		}
+		
+		$finalProductsTotal = $products->Count();
+		$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
+		$start = 0;
+		if ($this->getRequest()->requestVar('start'))
+		{
+			$start = $this->getRequest()->requestVar('start');
+		}
+		$products = $products->Limit($limit,$start);
+		
+		
+		if ($this->getRequest()->isAjax())
+		{
+			$ajaxData = [
+				'data' => [],
+				'draw' => strtotime('now'),
+				'recordsTotal' => $recordsTotal,
+				'recordsFiltered' => $finalProductsTotal,
+			];
+			foreach($products as $product)
+			{
+				$ajaxData['data'][] = [
+					'ID' => $product->ID,
+					'BigID' => $product->BigID,
+					'Title' => $product->Title,
+					'SKU' => $product->sku,
+					'Created' => $product->dbObject('Created')->Nice(),
+					'Actions' => null,
+					'DropdownText' => $product->Title
+				];
+			}
+			header('Content-Type: application/json');
+			print json_encode($ajaxData);
+			die();
+		}
+			
+		return $this->Customise([
+			'Products' => $products
+		]);
 	}
 	
 	public function Title()
@@ -297,6 +447,7 @@ JS
 		$this->loadThemePackage('forms');
 		foreach($form->Fields()->saveableFields() as $field)
 		{
+			if ($field instanceof FileAttachmentField) { continue; }
 			$field->addExtraClass('mt-2 form-control');
 			if ( ($field instanceof Forms\CheckboxField) ||
 				($field instanceof Forms\CheckboxSetField) ||
@@ -309,7 +460,14 @@ JS
 		{
 			if ($field instanceof Forms\CompositeField)
 			{
-				$field->addExtraClass('border p-3 mb-4');
+				if ($field->hasClass('selectiongroup'))
+				{
+					$field->addExtraClass('p-0 m-0');
+				}
+				else
+				{
+					$field->addExtraClass('border p-3 mb-4');
+				}
 			}
 		}
 		foreach($form->Actions() as $action)
@@ -653,14 +811,21 @@ JS
 	/** Inherited Methods for Managing Data **/
 	public function relatedObject()
 	{
-		$record = $this->currentRecord();
-		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
+		if (!$record = $this->currentRecord())
+		{
+			user_error('Main Record not found');
+		}
+		if (!$record->Exists())
+		{
+			user_error('Main Record must be saved first');
+		}
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		if ( (!$ComponentName) || (!$componentClass = $record->getRelationClass($ComponentName)) )
 		{
 			return false;
 		}
 		$components = $record->{$ComponentName}();
-		$objectID = $this->getRequest()->param('RelatedID') ? $this->getRequest()->param('RelatedID') : $this->getRequest()->requestVar('RelatedID');
+		$objectID = $this->getRequest()->requestVar('RelatedID') ? $this->getRequest()->requestVar('RelatedID') : $this->getRequest()->param('RelatedID');
 		if ($objectID)
 		{
 			$object = $components->byID($objectID);
@@ -693,10 +858,10 @@ JS
 			return 'You do not have permission to edit this record';
 		}
 
-		$fields = $relatedObject->getFrontEndFields();
+		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
+		$fields = $relatedObject->getFrontEndFields(['Master' => $record, 'ComponentName' => $ComponentName]);
 		
 		$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
-		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
 		if ($fields->dataFieldByName('ComponentName'))
 		{
 			$fields->dataFieldByName('ComponentName')->setValue($ComponentName);
@@ -730,6 +895,7 @@ JS
 	
 	public function doSaveComponent($data, $form)
 	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 		if (!$component = $this->relatedObject())
 		{
 			$this->addAlert('Related Component not Found','danger');
@@ -747,9 +913,9 @@ JS
 		{
 			try {
 				$entity = $component->Sync();
-				if ($component->hasMethod('loadFromApi'))
+				if ($component->hasMethod('loadApiData'))
 				{
-					$component->loadFromApi($entity);
+					$component->loadApiData($entity);
 				}
 				$synced = true;
 			} catch (\Exception $e) {
@@ -769,6 +935,7 @@ JS
 	
 	public function doDeleteComponent($data,$form)
 	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
 		{
 			$this->addAlert('Related Component not Found','danger');
@@ -787,6 +954,7 @@ JS
 	
 	public function relationremove()
 	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
 		{
 			$this->addAlert('Related Component not Found','danger');
@@ -796,10 +964,18 @@ JS
 		{
 			$this->addAlert('Record not found','danger');
 		}
-		$component->delete();
-		$record->NeedsSync = true;
-		$record->write();
+		try {
+			$component->delete();
+			$record->NeedsSync = true;
+			$record->write();
+		} catch (\Exception $e) {
+			throw $e;
+		}
 		$this->addAlert($component->singular_name().' Removed');
+		if ($this->getRequest()->isAjax())
+		{
+			
+		}
 		return $this->redirect($this->Link('edit/'.$record->ID));
 	}
 		
@@ -813,12 +989,15 @@ JS
 	{
 		if (is_null($this->_currentRecord))
 		{
-			$managedClass = $this->Config()->get('managed_class');
-			if ($id = $this->getRequest()->param('ID'))
+			if (!$className = $this->getRequest()->requestVar('ClassName'))
+			{
+				$managedClass = $this->Config()->get('managed_class');
+			}			
+			if ($id = $this->getRequest()->requestVar('_ID'))
 			{
 				$this->_currentRecord = $managedClass::get()->byID($id);
 			}
-			elseif ($id = $this->getRequest()->requestVar('_ID'))
+			elseif ($id = $this->getRequest()->param('ID'))
 			{
 				$this->_currentRecord = $managedClass::get()->byID($id);
 			}
@@ -849,7 +1028,14 @@ JS
 		);
 		if ( ($record->Exists()) && ($record->CanDelete()) )
 		{
-			$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
+			if ($record->BigID)
+			{
+				$actions->push(Forms\FormAction::create('doUnlink','Unlink')->addExtraClass('btn-danger ml-2'));
+			}
+			else
+			{
+				$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
+			}
 		}
 		
 		$validator = $record->getFrontEndRequiredFields($fields);
@@ -885,6 +1071,7 @@ JS
 			$message = 'Record Saved';
 			if ( ($record->hasMethod('Sync')) && ($entity = $record->Sync()) )
 			{
+				$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 				$message .= ' & Synced';
 			}
 			$this->addAlert($message);
@@ -893,5 +1080,80 @@ JS
 			throw $e;
 		}
 		return $this->redirectBack();
+	}
+	
+	public function doDelete()
+	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+			return $this->redirectBack();
+		}
+		if ($record->BigID)
+		{
+			return $this->doUnlink();
+		}
+		try {
+			$record->delete();
+			$this->addAlert('Record Deleted');
+			$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, false);
+			return $this->redirect($this->Link());
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
+			return $this->redirectBack();
+		}
+	}
+	
+	public function doUnlink()
+	{
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+			return $this->redirectBack();
+		}
+		if (!$record->BigID)
+		{
+			return $this->doDelete();
+		}
+		try {
+			$record->Unlink();
+			$this->addAlert('Record Removed from BigCommerce');
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
+		}
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		return $this->redirectBack();
+	}
+	
+	public function sort_items()
+	{
+		if ( (!$componentClass = $this->getRequest()->requestVar('component_class')) || (!$itemIDs = $this->getRequest()->requestVar('item_ids')) )
+		{
+			return $this->httpError(404);
+		}
+		$componentClass = ClassInfo::class_name($componentClass);
+		if ( (!$componentClass) || (!ClassInfo::exists($componentClass)) )
+		{
+			return 'Cannot find component class';
+		}
+		$components = $componentClass::get();
+		$count = 0;
+		$changes = [
+			'ids' => $itemIDs,
+			'componentClass' => $componentClass,
+			'changes' => []
+		];
+		foreach($itemIDs as $itemID)
+		{
+			$count++;
+			if ($component = $components->byID($itemID))
+			{
+				$changes['changes'][$component->ID] = $count;
+				$component->SortOrder = $count;
+				$component->write();
+			}
+		}
+		return json_encode($changes);
 	}
 }

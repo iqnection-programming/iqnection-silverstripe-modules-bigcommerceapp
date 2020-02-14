@@ -6,6 +6,9 @@ use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Model\ApiObjectInterface;
 use IQnection\BigCommerceApp\Model\Category;
 use IQnection\BigCommerceApp\Extensions\HasMetafields;
+use SilverStripe\SiteConfig\SiteConfig;
+use SilverStripe\Control\Controller;
+use IQnection\BigCommerceApp\Archive\Archivable;
 
 class Product extends DataObject implements ApiObjectInterface
 {
@@ -17,7 +20,8 @@ class Product extends DataObject implements ApiObjectInterface
 	
 	private static $extensions = [
 		ApiObject::class,
-		HasMetafields::class
+		HasMetafields::class,
+		Archivable::class
     ];
 	
 	private static $db = [
@@ -35,7 +39,6 @@ class Product extends DataObject implements ApiObjectInterface
 		'position',
 		'sku'
 	];
-	
 	
 	public function ApiData() 
 	{
@@ -55,14 +58,12 @@ class Product extends DataObject implements ApiObjectInterface
 	
 	public function Unlink() {}
 	
-	public function loadFromApi($data)
+	public function loadApiData($data)
 	{
 		if ($data)
 		{
 			$this->BigID = $data->id;
 			$this->Title = $data->name;
-			$this->sku = $data->sku;
-			$this->position = $data->position;
 			if (is_array($data->categories))
 			{
 				$existingCategoryIDs = $this->Categories()->Column('BigID');
@@ -82,13 +83,37 @@ class Product extends DataObject implements ApiObjectInterface
 					}
 				}
 			}
-			$this->LastSynced = date('Y-m-d H:i:s');
 		}
 		else
 		{
 			$this->BigID = null;
 		}
-		$this->RawData = json_encode($data);
+		$this->invokeWithExtensions('updateLoadFromApi',$data);
 		return $this;
+	}
+	
+	public function DropdownTitle()
+	{
+		return $this->Title;
+	}
+	
+	public function Link($action = null)
+	{
+		if ($RawApiData = $this->RawApiData())
+		{
+			$link = Controller::join_links($RawApiData->custom_url->url,$action);
+			$this->extend('updateLink',$link);
+			return $link;
+		}
+	}
+	
+	public function AbsoluteLink($action = null)
+	{
+		if ($link = $this->Link($action))
+		{
+			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$link);
+			$this->extend('updateAbsoluteLink',$link);
+			return $link;
+		}
 	}
 }

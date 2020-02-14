@@ -24,7 +24,7 @@ class ApiObject extends DataExtension
 	
 	private static $readonly_fields = [
 		'BigID',
-		'Title'
+//		'Title'
 	];
 	
 	private static $remove_fields = [
@@ -128,7 +128,10 @@ class ApiObject extends DataExtension
 	 */
 	public function Unlink()
 	{
-		user_error('Unlink called in '.get_class($this->owner).', but not implemented');
+		if ($entity = $this->Entity())
+		{
+			$entity->delete();
+		}
 	}
 	
 	public function ApiClient()
@@ -139,12 +142,17 @@ class ApiObject extends DataExtension
 		}
 	}
 	
-	public function loadFromApi($data)
+	public function loadApiData($data)
+	{
+		$this->owner->invokeWithExtensions('updateLoadFromApi',$data);
+		return $this->owner;
+	}
+	
+	public function updateLoadFromApi($data)
 	{
 		$this->owner->RawData = json_encode($data);
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
 		$this->owner->NeedsSync = false;
-		return $this->owner;
 	}
 	
 	public function Sync() 
@@ -153,7 +161,7 @@ class ApiObject extends DataExtension
 		$this->owner->invokeWithExtensions('onBeforeSync', $Entity);
 		$Entity->Sync();
 		$this->owner->invokeWithExtensions('onAfterSync', $Entity);
-		$this->owner->loadFromApi($Entity);
+		$this->owner->loadApiData($Entity);
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
 		$this->owner->NeedsSync = false;
 		$this->owner->write();
@@ -178,6 +186,11 @@ class ApiObject extends DataExtension
 			}
 		}
 		return $this->owner->_entity;
+	}
+	
+	public function onBeforeDelete()
+	{
+		$this->Unlink();
 	}
 }
 

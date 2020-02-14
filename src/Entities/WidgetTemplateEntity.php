@@ -9,6 +9,7 @@ use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
 use BigCommerce\Api\v3\Model\WidgetTemplateRequest;
 use IQnection\BigCommerceApp\Model\BigCommerceLog;
+use SilverStripe\Core\Injector\Injector;
 
 class WidgetTemplateEntity extends Entity
 {
@@ -18,11 +19,21 @@ class WidgetTemplateEntity extends Entity
 	private static $client_class = \BigCommerce\Api\v3\Api\WidgetApi::class;
 	private static $cache_name = 'bigcommerce-widgettemplate';
 	
-	protected static $_is_pushing = false;
+	public function ApiData() 
+	{
+		$data = parent::ApiData();
+		if ( ($data['Title']) && (!$data['name']) )
+		{
+			$data['name'] = $data['Title'];
+		}
+		$this->extend('updateApiData',$data);
+		return $data;
+	}
+	
 	public function Sync()
 	{
 		$data = $this->ApiData();
-		$id = $this->BigID ? $this->BigID : $data['id'];
+		$id = $data['BigID'] ? $data['BigID'] : ($data['uuid'] ? $data['uuid'] : ($data['id'] ? $data['id'] : null));
 		$Client = $this->ApiClient();
 		if ($id)
 		{
@@ -44,7 +55,7 @@ class WidgetTemplateEntity extends Entity
 		return parent::loadApiData($data);
 	}
 	
-	public function delete()
+	public function Unlink()
 	{
 		if ( ($id = $this->uuid) || ($id = $this->BigID) )
 		{
@@ -53,8 +64,33 @@ class WidgetTemplateEntity extends Entity
 		}
 	}
 	
-	public function Unlink()
-	{ }
+	public static function getAll($refresh = false)
+	{
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'),__FUNCTION__);
+		$cachedData = self::fromCache($cacheName);
+		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
+		{
+			$cachedData = ArrayList::create();
+			$inst = self::singleton();
+			$apiClient = $inst->ApiClient();
+			$page = 1;
+			$apiResponse = $apiClient->getWidgetTemplates(['page' => $page, 'limit' => 100]);
+			$responseMeta = $apiResponse->getMeta();
+			while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
+			{
+				foreach($apiRecords as $apiRecord)
+				{
+					$newInst = Injector::inst()->create(static::class, []);
+					$newInst->loadApiData($apiRecord);
+					$cachedData->push($newInst);
+				}
+				$page++;
+				$apiResponse = $apiClient->getWidgetTemplates(['page' => $page, 'limit' => 100]);
+			}
+			self::toCache($cacheName, $cachedData);
+		}
+		return $cachedData;
+	}
 }
 
 

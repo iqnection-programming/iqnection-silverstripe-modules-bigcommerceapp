@@ -6,9 +6,16 @@ use SilverStripe\ORM\DataObject;
 use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
+use IQnection\BigCommerceApp\Extensions\ApiRelatedObject;
 
 class WidgetListItem extends DataObject implements \JsonSerializable
 {
+	public $Sortable = true;
+	
+	private static $extensions = [
+		ApiRelatedObject::class
+	];
+	
 	private static $table_name = 'BCWidgetListItem';
 	
 	private static $db = [
@@ -28,7 +35,10 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 	{
 		$fields = parent::getFrontEndFields();
 		$fields->replaceField('SortOrder', Forms\HiddenField::create('SortOrder','')->setValue($this->SortOrder));
-		$fields->removeByName('ID');
+		$fields->removeByName([
+			'ID',
+			'WidgetID'
+		]);
 		if ($this->Exists())
 		{
 			$fields->push( Forms\HiddenField::create('ComponentID','')->setValue($this->ID) );

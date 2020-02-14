@@ -6,6 +6,7 @@ namespace IQnection\BigCommerceApp\App;
 use SilverStripe\Core\Extension;
 use IQnection\BigCommerceApp\Model\Widget;
 use IQnection\BigCommerceApp\Entities\WidgetPlacementEntity;
+use IQnection\BigCommerceApp\Entities\WidgetTemplateEntity;
 use SilverStripe\Forms;
 use SilverStripe\ORM\ValidationException;
 use SilverStripe\View\ArrayData;
@@ -13,12 +14,15 @@ use SilverStripe\ORM\ArrayList;
 use SilverStripe\Core\Injector\Injector;
 use IQnection\BigCommerceApp\Model\WidgetListItem;
 use IQnection\BigCommerceApp\Model\WidgetTemplate;
+use IQnection\BigCommerceApp\Model\WidgetPlacement;
 use IQnection\BigCommerceApp\Client;
 use BigCommerce\Api\v3\Api\WidgetApi;
 use SilverStripe\Core\ClassInfo;
 
 class Widgets extends Main
 {
+	const SKIP_SYNC_SESSION_VAR = 'skip-widget-sync';
+	private static $managed_class = Widget::class;
 	private static $url_segment = '_bc/widgets';
 	private static $allowed_actions = [
 		'_test' => 'ADMIN',
@@ -29,19 +33,23 @@ class Widgets extends Main
 		'widgetForm',
 		'edit',
 		'edititem',
-		'resync',
+		'sync',
 		'listItemForm',
 		'delete',
 		'deleteitem',
 		'syncHomePage',
 		'placement',
 		'deleteplacement',
-		'PlacementForm'
+		'PlacementForm',
+		'unlinktemplate'
 	];
 	
 	private static $url_handlers = [
-		'edititem/$WidgetID/$ComponentName/$ComponentID' => 'edititem',
+		'edit/$ID/config' => 'widgetconfig',
+//		'edit/$ID/config/$ComponentName!/$ComponentID' => 'edititem',
+//		'edititem/$WidgetID/$ComponentName/$ComponentID' => 'edititem',
 		'deleteitem/$WidgetID/$ComponentName/$ComponentID' => 'deleteitem',
+		'edit/$ID/place/$ComponentName/$RelatedID' => 'placement'
 	];
 	
 	private static $nav_links = [
@@ -157,242 +165,99 @@ class Widgets extends Main
 		return $this->_placements;
 	}
 	
-	protected $_currentWidget;
-	public function currentWidget()
+	public function edit()
 	{
-		if (is_null($this->_currentWidget))
+		if ( (!$this->getRequest()->isPost()) && (!$this->getRequest()->getSession()->get(static::SKIP_SYNC_SESSION_VAR)) )
 		{
-			if ($id = $this->getRequest()->param('ID'))
+			if ($widget = $this->currentRecord())
 			{
-				$this->_currentWidget = Widget::get()->byID($id);
-			}
-			elseif ($id = $this->getRequest()->param('WidgetID'))
-			{
-				$this->_currentWidget = Widget::get()->byID($id);
-			}
-			elseif ($id = $this->getRequest()->postVar('_WidgetID'))
-			{
-				$this->_currentWidget = Widget::get()->byID($id);
-			}
-			if (!$this->_currentWidget)
-			{
-				$this->_currentWidget = Widget::create();
+				$widget->SyncPlacements();
 			}
 		}
-		return $this->_currentWidget;
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, false);
+		return $this;
 	}
 	
-	protected $_currentWidgetListItem;
-	public function currentWidgetListItem()
+	public function sync()
 	{
-		if (is_null($this->_currentWidgetListItem))
+		if ($widget = $this->currentRecord())
 		{
-			if ($id = $this->getRequest()->requestVar('ComponentID'))
-			{
-				$this->_currentWidgetListItem = WidgetListItem::get()->byID($id);
+			try {
+				$widget->Sync();
+				$this->addAlert('Widget Configuration Synced');
+			} catch (\Exception $e) {
+				$this->addAlert('There was an error syncing the widget','danger');
+				$this->addAlert(json_encode($e->getMessage()));
 			}
-			elseif ($id = $this->getRequest()->param('ComponentID'))
-			{
-				$this->_currentWidgetListItem = WidgetListItem::get()->byID($id);
-			}
-			if (!$this->_currentWidgetListItem)
-			{
-				$widget = $this->currentWidget();
-				if ($widget->Exists())
-				{
-					if ( ($ComponentCollection = $this->currentComponentCollection()) )
-					{
-						if ($componentClass = $widget->getRelationClass($ComponentCollection->ComponentName))
-						{
-							$this->_currentWidgetListItem = $widget->getComponents($ComponentCollection->ComponentName)->newObject();
-						}
-					}
-				}
-			}
-		}
-		return $this->_currentWidgetListItem;
-	}
-	
-	public function resync()
-	{
-		if ($widget = $this->currentWidget())
-		{
-			$widget->Sync();
-			$this->addAlert('Widget Synced');
 		}
 		return $this->redirectBack();
 	}
-	
-	public function widgetForm()
-	{
-		$widget = $this->currentWidget();
-		$fields = $widget->getFrontEndFields();
-		$fields->push( Forms\HiddenField::create('_WidgetID','',$widget->ID) );
 		
-		$actions = Forms\FieldList::create(
-			Forms\FormAction::create('doSaveWidget','Save')
-		);
-		if ($widget->Exists())
-		{
-			$removeText = ($widget->BigID) ? 'Deactivate' : 'Delete';
-			$actions->push(Forms\FormAction::create('doDeleteWidget',$removeText)->addExtraClass('btn-danger ml-2'));
-		}
-		
-		$validator = $widget->getFrontEndRequiredFields($fields);
-		
-		$form = Forms\Form::create(
-			$this,
-			'widgetForm',
-			$fields,
-			$actions,
-			$validator
-		);
-		$form->loadDataFrom($widget);
-		$this->BootstrapForm($form);
-		return $form;
-	}
-	
-	public function doSaveWidget($data,$form)
-	{
-		$widget = $this->currentWidget();
-		if (!$widget->Exists())
-		{
-			if (!$data['WidgetType'])
-			{
-				$this->addAlert('Please select a widget type','danger');
-				return $this->redirectBack();
-			}
-			$widgetClass = ClassInfo::class_name($data['WidgetType']);
-			if (!class_exists($widgetClass))
-			{
-				$this->addAlert('Invalid widget type','danger');
-				return $this->redirectBack();
-			}
-			$widget = Injector::inst()->create($widgetClass);
-		}
-		$form->saveInto($widget);
-		try {
-			$widget->write();
-			$this->addAlert('Widget Saved');
-		} catch (\Exception $e) {
-			throw $e;
-		}
-		return $this->redirectBack();
-	}
-	
-	public function doDeleteWidget()
-	{
-		$widget = $this->currentWidget();
-		if ($widget->Exists())
-		{
-			if ($widget->BigID)
-			{
-				$widget->Unlink();
-				$this->addAlert('Widget Removed from BigCommerce');
-			}
-			else
-			{
-				$this->addAlert('Widget Deleted');
-				$widget->delete();
-			}
-		}
-		else
-		{
-			$this->addAlert('Widget Not Found','danger');
-		}
-		return $this->redirect($this->Link());
-	}
-	
-	public function deleteitem()
-	{
-		$widget = $this->currentWidget();
-		if ($listItem = $this->currentWidgetListItem())
-		{
-			$listItem->delete();
-			$this->addAlert('Item Deleted');
-		}
-		return $this->redirectBack();	
-	}
-		
-	public function currentComponentCollection()
-	{
-		if ( ($componentName = $this->getRequest()->param('ComponentName')) || ($componentName = $this->getRequest()->requestVar('ComponentName')) )
-		{
-			return $this->currentWidget()->Collections()->Find('ComponentName',$componentName);
-		}
-	}
-	
-	public function listItemForm()
-	{
-		$widget = $this->currentWidget();
-		if (!$listItem = $this->currentWidgetListItem())
-		{
-			return null;
-		}		
-		$fields = $listItem->getFrontEndFields();
-		$fields->push( Forms\HiddenField::create('_WidgetID','',$widget->ID));
-		
-		$actions = Forms\FieldList::create(
-			Forms\FormAction::create('doSaveListItem','Save')
-		);
-		
-		$validator = $listItem->getFrontEndRequiredFields($fields);
-		
-		$form = Forms\Form::create(
-			$this,
-			'listItemForm',
-			$fields,
-			$actions,
-			$validator
-		);
-		$form->loadDataFrom($listItem);
-		$this->BootstrapForm($form);
-		return $form;
-	}
-	
-	public function doSaveListItem($data,$form)
-	{
-		$widget = $this->currentWidget();
-		$listItem = $this->currentWidgetListItem();
-		if (!$componentCollection = $this->currentComponentCollection())
-		{
-			$this->addAlert('Component Relation Not Found','danger');
-			return $this->redirectBack();
-		}
-		$form->saveInto($listItem);
-		
-		$widget->getComponents($componentCollection->ComponentName)->add($listItem);
-		try {
-			$listItem->write();
-			$this->addAlert('Item Saved!');
-		} catch (\Exception $e) {
-			throw $e;
-		}
-		return $this->redirect($this->Link('items/'.$widget->ID));
-	}
-	
-	public function doRemoveListItem($data, $form)
-	{
-		$listItem = $this->currentWidgetListItem();
-		if ($listItem->Exists())
-		{
-			$listItem->delete();
-		}
-		return $this->redirectBack();
-	}
-	
 	public function PlacementForm()
 	{
-		$widget = $this->currentWidget();
-		$placement = WidgetPlacement::singleton();
-		$fields = $placement->getFrontEndFields();
-		$fields->push( Forms\HiddenField::create('_WidgetID','',$widget->ID));
+		$widget = $this->currentRecord();
+		$currentPlacement = $this->relatedObject();
+		$fields = Forms\FieldList::create();
+		$fields->push( Forms\HeaderField::create('pages-header','Page',3)->addExtraClass('mb-0') );
+		$fields->push( $selectionGroup = Forms\SelectionGroup::create('template_file', [])->removeExtraClass('mt-0') );
+		$postInst = WidgetPlacementEntity::create([]);
+		if ($this->getRequest()->isPost())
+		{
+			$postVars = $this->getRequest()->postVars();
+			$postInst->setTemplateConfig($postVars['template_file']);
+			$postInst->entity_id = $postVars['entity_id'][$postInst->template_file];
+			$postInst->region = $postVars['region'][$postInst->template_file];
+		}
+		foreach(WidgetPlacementEntity::getTemplateFiles()->Filter('Enabled',true) as $templateConfig)
+		{
+			$regions = [];
+			foreach(WidgetPlacementEntity::getContentRegions($templateConfig->Name) as $regionRecord)
+			{
+				$regions[$regionRecord->name] = ucwords(preg_replace('/_/',' ',$regionRecord->name));
+			}
+			if (count($regions))
+			{
+				$selectionGroup->push( $selectionGroup_item = Forms\SelectionGroup_Item::create($templateConfig->Name, [], $templateConfig->Title) );
+				if ( ($EntityClass = $templateConfig->EntityClass) && (class_exists($EntityClass)) )
+				{
+					$source = [];
+					try {
+						// to trick the validator, we have to set the selected value as an available value
+						// see if a value has been selected
+						if ($postInst->template_file == $templateConfig->template_file)
+						{
+							if ($postInstPlacementResource = $postInst->getPlacementResource())
+							{
+								$source[$postInstPlacementResource->id] = $postInstPlacementResource->dropdownTitle();
+							}
+						}
+					} catch (\Exception $e) {
+						$this->addAlert($e->getResponseBody(),'danger');
+					}
+					$selectionGroup_item->push($entity_id = Forms\DropdownField::create('entity_id['.$templateConfig->Name.']', $templateConfig->Title)
+						->setAttribute('data-ajax-call','1')
+						->setAttribute('data-resource-type',$templateConfig->Title)
+						->setAttribute('data-id-field','BigID')
+						->setSource($source)
+						->setEmptyString('-- Select --') );
+				}
+				// get regions on the category template
+				$selectionGroup_item->push($region = Forms\DropdownField::create('region['.$templateConfig->Name.']', 'Region')
+					->setSource($regions)
+					->setEmptyString('-- Select --') );
+
+			}
+		}
+		
+		$fields->push( Forms\HiddenField::create('_ID','',$widget->ID));
+		$fields->push( Forms\HiddenField::create('ComponentName','','Placements'));
+		$fields->push( Forms\HiddenField::create('RelatedID','',$currentPlacement->ID));
 		
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSavePlacement','Save')
 		);
 		
-		$validator = $placement->getFrontEndRequiredFields($fields);
+		$validator = Forms\RequiredFields::create();
 		
 		$form = Forms\Form::create(
 			$this,
@@ -401,35 +266,70 @@ class Widgets extends Main
 			$actions,
 			$validator
 		);
-//		$form->loadDataFrom($placement);
+		// set defaults
+		if ($currentPlacement->Exists())
+		{
+			if ( ($entity_id_field = $fields->dataFieldByName('entity_id['.$currentPlacement->template_file.']')) && ($resource = $currentPlacement->getPlacementResource()) )
+			{
+				$entityIDs = $entity_id_field->getSource();
+				$entityIDs[$resource->BigID] = $resource->dropdownTitle();
+				$entity_id_field->setSource($entityIDs);
+			}
+			$form->loadDataFrom([
+				'entity_id' => [$currentPlacement->template_file => $currentPlacement->entity_id],
+				'region' => [$currentPlacement->template_file => $currentPlacement->region],
+				'template_file' => $currentPlacement->template_file
+			]);
+		}
+		if ($this->getRequest()->isPost())
+		{
+			$form->loadDataFrom($postInst);
+		}
 		$this->BootstrapForm($form);
 		return $form;
 	}
 	
 	public function doSavePlacement($data,$form)
 	{
-		$widget = $this->currentWidget();
-		$placement = WidgetPlacement::singleton();
-		$placement->WidgetBigID = $widget->BigID;
-		$placement->RegionName = $data['Entity'][$data['PageType']]['Region'];
-		$placement->EntityID = $data['Entity'][$data['PageType']]['ID'];
-		$placement->TemplateFile = $data['PageType'];
+		$widget = $this->currentRecord();
+		$currentPlacement = $this->relatedObject();
+		$currentPlacement->WidgetID = $widget->ID;
+		$currentPlacement->template_file = $data['template_file'];
+		$currentPlacement->region = $data['region'][$currentPlacement->template_file];
+		$currentPlacement->entity_id = (isset($data['entity_id'][$currentPlacement->template_file])) ? $data['entity_id'][$currentPlacement->template_file] : null;
 		
 		try {
-			$placement->sync();
+			$currentPlacement->Sync();
+			$currentPlacement->write();
 			$this->addAlert('Widget Placed');
 		} catch (\Exception $e) {
 			$this->addAlert($e->getMessage(), 'danger');
 		}
-		return $this->redirect($this->Link('widgetconfig/'.$widget->ID));
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		return $this->redirect($this->Link('edit/'.$widget->ID));
 	}
 	
 	public function deleteplacement()
 	{
 		$BigID = $this->getRequest()->param('ID');
-		$inst = WidgetPlacement::singleton();
+		$inst = WidgetPlacementEntity::singleton();
 		$inst->BigID = $BigID;
 		$inst->delete();
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		return $this->redirectBack();
+	}
+	
+	public function unlinktemplate()
+	{
+		$entity = WidgetTemplateEntity::create([
+			'BigID' => $this->getRequest()->param('ID')
+		]);
+		try {
+			$entity->Unlink();
+			$this->addAlert('Widget Template Removed');
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
+		}
 		return $this->redirectBack();
 	}
 }

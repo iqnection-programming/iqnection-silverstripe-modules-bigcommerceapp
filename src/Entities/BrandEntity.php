@@ -61,6 +61,22 @@ class BrandEntity extends Entity
 		return $cachedData;
 	}
 	
+	public static function getById($id)
+	{
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__.$id);
+		$cachedData = self::fromCache($cacheName);
+		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
+		{
+			$inst = Injector::inst()->create(static::class, []);
+			$apiClient = $inst->ApiClient();
+			$apiResponse = $apiClient->getBrandById($id);
+			$apiRecords = $apiResponse->getData();
+			$inst->loadApiData($apiRecord);
+			self::toCache($cacheName, $inst);
+		}
+		return $cachedData;
+	}
+	
 	public static function forDropdown()
 	{
 		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__);

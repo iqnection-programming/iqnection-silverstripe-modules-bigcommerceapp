@@ -64,7 +64,7 @@ class Metafield extends DataExtension
 		return $data;
 	}
 	
-	public function loadFromApi($data)
+	public function loadApiData($data)
 	{
 		$this->owner->invokeWithExtensions('updateLoadFromApi',$data);
 		return $this->owner;
@@ -96,7 +96,7 @@ class Metafield extends DataExtension
 		$this->owner->invokeWithExtensions('onBeforeSync', $Entity);
 		$Entity->Sync();
 		$this->owner->invokeWithExtensions('onAfterSync', $Entity);
-		$this->owner->loadFromApi($Entity);
+		$this->owner->loadApiData($Entity);
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
 		$this->owner->NeedsSync = false;
 		$this->owner->write();

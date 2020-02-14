@@ -35,11 +35,46 @@ class Products extends Main
 	
 	public function index()
 	{
-		return $this->search();
+		Requirements::customScript(
+<<<JS
+(function($){
+"use strict";
+$(document).ready(function(){
+	$("#product-list").dataTable({
+		"processing": true,
+		"serverSide": true,
+		"ordering": false,
+		"pageLength": 100,
+		"deferRender": true,
+		"searchDelay": 750,
+		"columns": [
+			{ "data": "ID" },
+			{ "data": "BigID" },
+			{ "data": "Title" },
+			{ "data": "SKU" },
+			{ "data": "Created" },
+			{ 	"data": "Actions", 
+				"className": "text-right text-nowrap", 
+				"orderable": false, 
+				"searchable": false,
+				"createdCell": function(td, cellData, rowData, row, col) {
+					return $(td).html('<a href="{$this->Link('edit')}/'+(rowData.ID)+'" class="btn btn-primary btn-sm">Edit</a>'+
+								'<a href="{$this->Link('resync')}/'+(rowData.ID)+'" class="btn btn-outline-success btn-sm">Resync</a>');
+				}
+			}
+		],
+		"ajax": "{$this->Link()}"
+	});
+});
+}(jQuery));
+JS
+);
+		return $this->searchProducts(null, 'products');
 	}
 	
 	public function search()
-	{		
+	{
+		user_error(__FUNCTION__.' in '.__CLASS__.' is Deprecated');	
 		$products = Product::get();
 		$recordsTotal = $products->Count();
 
@@ -97,32 +132,7 @@ class Products extends Main
 			die();
 		}
 			
-		Requirements::customScript(
-<<<JS
-(function($){
-"use strict";
-$(document).ready(function(){
-	$("#product-list").dataTable({
-		"processing": true,
-		"serverSide": true,
-		'ordering': false,
-		'pageLength': 100,
-		'deferRender': true,
-		'searchDelay': 750,
-		'columns': [
-			{ 'data': 'ID' },
-			{ 'data': 'BigID' },
-			{ 'data': 'Title' },
-			{ 'data': 'SKU' },
-			{ 'data': 'Created' },
-			{ 'data': 'Actions', 'className': 'text-right', 'orderable': false, 'searchable': false }
-		],
-		"ajax": $("#product-list").data('src')
-	});
-});
-}(jQuery));
-JS
-);
+		
 		return $this->Customise([
 			'Products' => $products
 		]);

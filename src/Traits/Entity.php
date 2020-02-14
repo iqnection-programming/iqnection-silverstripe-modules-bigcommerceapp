@@ -47,24 +47,29 @@ trait Entity
 		return $this;
 	}
 	
-	public function getFrontEndRequiredFields()
-	{
-		return $this->_getFrontEndRequiredFields();
-	}
+//	public function getFrontEndRequiredFields()
+//	{
+//		return $this->_getFrontEndRequiredFields();
+//	}
+//	
+//	public function _getFrontEndRequiredFields()
+//	{
+//		return Forms\RequiredFields::create();
+//	}
+//	
+//	public function getFrontEndFields()
+//	{
+//		return $this->_getFrontEndFields();
+//	}
+//	
+//	public function _getFrontEndFields()
+//	{
+//		return Forms\FieldList::create();
+//	}
 	
-	public function _getFrontEndRequiredFields()
+	public function dropdownTitle()
 	{
-		return Forms\RequiredFields::create();
-	}
-	
-	public function getFrontEndFields()
-	{
-		return $this->_getFrontEndFields();
-	}
-	
-	public function _getFrontEndFields()
-	{
-		return Forms\FieldList::create();
+		return $this->name;
 	}
 	
 	public function forDropdown()
@@ -76,7 +81,13 @@ trait Entity
 	
 	public function loadApiData($data)
 	{
+		return $this->_loadApiData($data);
+	}
+	
+	public function _loadApiData($data)
+	{
 		$this->array = [];
+		$this->api_data = $data;
 		if ( (is_object($data)) && (method_exists($data, 'get')) )
 		{
 			foreach($data->get() as $key => $value)

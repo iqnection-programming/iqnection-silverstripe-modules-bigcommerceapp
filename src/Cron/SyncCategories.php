@@ -19,10 +19,10 @@ class SyncCategories extends Sync
 	
 	public function run($request)
 	{
-		$this->syncCategories();
+		$this->_syncCategories();
 	}
 	
-	public function syncCategories()
+	public function _syncCategories()
 	{
 		$this->message('Syncing Records from BigCommerce');
 		$bcCategoryEntity = Category::singleton()->Entity();
@@ -32,11 +32,14 @@ class SyncCategories extends Sync
 		$this->message('Retrieving Database Categories');
 		$allDbCategoryIDs = Category::get()->Column('ID');
 		$this->message(count($allDbCategoryIDs).' Database Categories Found');
+		sleep(2);
 		$syncedIDs = [];
 		$updated = 0;
 		$created = 0;
+		$count = count($allDbCategoryIDs);
 		foreach($bcCategories as $bcCategory)
 		{
+			$count--;
 			$status = 'Updating';
 			if (!$category = Category::get()->Find('BigID', $bcCategory->id))
 			{
@@ -50,22 +53,23 @@ class SyncCategories extends Sync
 			{
 				$updated++;
 			}
-			$this->message($status.' Category: ['.$bcCategory->id.'] '.$bcCategory->name);
-			$category->invokeWithExtensions('loadFromApi',$bcCategory);
-			//$category->loadFromApi($bcCategory);
+			$this->message($count.' - '.$status.' Category: ['.$bcCategory->id.'] '.$bcCategory->name);
+			$category->invokeWithExtensions('loadApiData',$bcCategory);
+			//$category->loadApiData($bcCategory);
 			$category->write();
 			$syncedIDs[] = $category->ID;
 			
-			usleep(500000);
 		}
-		
+		sleep(2);
 		// remove left over categories
 		$removed = 0;
 		$removeCategories = Category::get()->Exclude('ID',$syncedIDs);
 		$this->message($removeCategories->Count().' Categories to remove');
+		$count = $removeCategories->Count();
 		foreach($removeCategories as $category)
 		{
-			$this->message('Removing: '.$category->Title);
+			$count--;
+			$this->message($count.' - Removing: '.$category->Title);
 			$category->delete();
 			$removed++;
 		}

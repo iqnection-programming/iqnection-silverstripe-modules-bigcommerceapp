@@ -51,7 +51,7 @@ class Sync extends BuildTask
 				$updated++;
 			}
 			$this->message($status.' Category: ['.$bcCategory->id.'] '.$bcCategory->name);
-			$category->loadFromApi($bcCategory);
+			$category->loadApiData($bcCategory);
 			$category->write();
 			usleep(500000);
 		}
@@ -93,7 +93,7 @@ class Sync extends BuildTask
 					$updated++;
 				}
 				$this->message($status.' Product '.($updated+$created).' : ['.$apiRecord->id.'] '.$apiRecord->name);
-				$product->loadFromApi($apiRecord);
+				$product->loadApiData($apiRecord);
 				$product->write();
 				usleep(500000);
 			}
@@ -124,7 +124,7 @@ class Sync extends BuildTask
 					if (!$dbObject = WidgetTemplate::get()->Find('BigID',$widgetTemplate->getUuid()))
 					{
 						$dbObject = WidgetTemplate::create();
-						$dbObject->loadFromApi($widgetTemplate);
+						$dbObject->loadApiData($widgetTemplate);
 						$dbObject->write();
 						$this->message($dbObject->BigID,'Creating Widget Template');
 					}

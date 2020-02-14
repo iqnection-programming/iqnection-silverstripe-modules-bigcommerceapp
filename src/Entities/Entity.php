@@ -15,7 +15,7 @@ class Entity extends ArrayData implements \JsonSerializable
 		{
 			$data['id'] = $data['BigID'];
 		}
-		$this->extend('updateApiData', $data);
+		$this->invokeWithExtensions('updateApiData', $data);
 		return $data;
 	}
 	
@@ -77,5 +77,10 @@ class Entity extends ArrayData implements \JsonSerializable
 			}
 		}
 		return $arrayData;
+	}
+	
+	public function delete()
+	{
+		user_error('delete called in '.get_class($this).', but not implemented');
 	}
 }

@@ -8,6 +8,7 @@ use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
 use IQnection\BigCommerceApp\Extensions\HasMetafieldEntities;
+use SilverStripe\Core\Injector\Injector;
 
 class ProductEntity extends Entity
 {
@@ -35,6 +36,7 @@ class ProductEntity extends Entity
 			$data['weight'] = ($data['weight']) ? $data['weight'] : 0;
 			$data['price'] = ($data['price']) ? $data['price'] : 0;
 		}
+		$this->invokeWithExtensions('updateApiData', $data);
 		return $data;
 	}
 	
@@ -85,9 +87,25 @@ class ProductEntity extends Entity
 				}
 				$page++;
 				$filters['page'] = $page;
-				$apiResponse = $apiClient->getCategories($filters);
+				$apiResponse = $apiClient->getProducts($filters);
 			}
 			self::toCache($cacheName, $cachedData);
+		}
+		return $cachedData;
+	}
+	
+	public static function getById($id)
+	{
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__.$id);
+		$cachedData = self::fromCache($cacheName);
+		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
+		{
+			$inst = Injector::inst()->create(static::class, []);
+			$apiClient = $inst->ApiClient();
+			$apiResponse = $apiClient->getProductById($id);
+			$apiRecords = $apiResponse->getData();
+			$inst->loadApiData($apiRecord);
+			self::toCache($cacheName, $inst);
 		}
 		return $cachedData;
 	}

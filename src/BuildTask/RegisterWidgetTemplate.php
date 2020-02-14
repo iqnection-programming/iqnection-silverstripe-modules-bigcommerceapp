@@ -6,6 +6,7 @@ use SilverStripe\Dev\BuildTask;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\ClassInfo;
 use IQnection\BigCommerceApp\Model\WidgetTemplate;
+use IQnection\BigCommerceApp\Entities\WidgetTemplateEntity;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Convert;
 use SilverStripe\Versioned\Versioned;
@@ -22,6 +23,21 @@ class RegisterWidgetTemplate extends BuildTask
 	
 	public function run($request)
 	{
+		if ($sync = $request->getVar('syncAll'))
+		{
+			$this->syncAll($sync);
+			return;
+		}
+		if ($sync = $request->getVar('preview'))
+		{
+			$this->previewTemplate($sync);
+			return;
+		}
+		if ($sync = $request->getVar('validate'))
+		{
+			$this->validateTemplate($sync);
+			return;
+		}
 		if ($sync = $request->getVar('sync'))
 		{
 			$this->syncTemplate($sync);
@@ -46,13 +62,19 @@ class RegisterWidgetTemplate extends BuildTask
 			if ( ($registeredTemplate) && ($registeredTemplate->BigID) )
 			{
 				print '<div>BigCommerce ID: '.$registeredTemplate->BigID.'</div>';
-				print '<div><a href="?sync='.preg_replace('/\\\\/','-',$subclass).'">Update</a></div>';
+				print '<div><a href="?validate='.base64_encode($subclass).'" target="_blank">Validate</a></div>';
+				print '<div><a href="?preview='.base64_encode($subclass).'" target="_blank">Preview</a></div>';
+				print '<div><a href="?sync='.base64_encode($subclass).'">Update</a></div>';
 			}
 			else
 			{
-				print '<div><a href="?sync='.preg_replace('/\\\\/','-',$subclass).'">Register</a></div>';
+				print '<div><a href="?validate='.base64_encode($subclass).'" target="_blank">Validate</a></div>';
+				print '<div><a href="?preview='.base64_encode($subclass).'" target="_blank">Preview</a></div>';
+				print '<div><a href="?sync='.base64_encode($subclass).'">Register</a></div>';
 			}
 		}
+		
+		print '<h3><a href="?syncAll=1">Sync All Templates from BigCommerce</a></h3>';
 		
 		print '<h3>Registered Widget Templates</h3><table>';
 		foreach($this->getBCWidgetTemplates() as $widgetTemplate)
@@ -86,13 +108,58 @@ class RegisterWidgetTemplate extends BuildTask
 		return $widgetTemplateData;
 	}
 	
+	protected function validateTemplate($class)
+	{
+		$class = base64_decode($class);
+		$this->message('Validating Widget Template: '.$class);
+		$className = ClassInfo::class_name($class);
+		if (!class_exists($className))
+		{
+			$this->message('Class ['.$class.'] Not Found');
+		}		
+		// get the current version stage
+		$currentStage = Versioned::get_stage();
+		Versioned::set_stage(Versioned::LIVE);
+		$singleton = Injector::inst()->create($className);
+		
+		$errors = $singleton->validateHandlebars();
+		if ($currentStage != Versioned::LIVE)
+		{
+			Versioned::set_stage($currentStage);
+		}
+		$this->message($errors,'Results');
+	}
+	
+	protected function previewTemplate($class)
+	{
+		$class = base64_decode($class);
+		$this->message('Widget Template Preview: '.$class);
+		$className = ClassInfo::class_name($class);
+		if (!class_exists($className))
+		{
+			$this->message('Class ['.$class.'] Not Found');
+		}		
+		// get the current version stage
+		$currentStage = Versioned::get_stage();
+		Versioned::set_stage(Versioned::LIVE);
+		$singleton = Injector::inst()->create($className);
+		
+		print '<pre><xmp>';
+		print $singleton->getTemplateHtml();
+		print '</xmp></pre>';
+		if ($currentStage != Versioned::LIVE)
+		{
+			Versioned::set_stage($currentStage);
+		}
+	}
+	
 	protected function deleteTemplate($uuid)
 	{
 		$this->message('Deleting Widget Template: '.$uuid);
 		$entity = Injector::inst()->create(\IQnection\BigCommerceApp\Entities\WidgetTemplateEntity::class);
 		$entity->uuid = $uuid;
 		try {
-			$entity->delete();
+			$entity->Unlink();
 			$this->message('Deleted');
 		} catch (\Exception $e) {
 			$this->message('ERROR');
@@ -100,8 +167,45 @@ class RegisterWidgetTemplate extends BuildTask
 		}
 	}
 	
+	protected function syncAll()
+	{
+		$bcTemplates = WidgetTemplateEntity::getAll(true);
+		$this->message($bcTemplates->Count().' BC Templates Found');
+		$dbTemplates = WidgetTemplate::get();
+		$this->message($dbTemplates->Count().' DB Templates Found');
+		$syncedIDs = [];
+		foreach($bcTemplates as $bcTemplate)
+		{
+			if ($bcTemplate->kind == 'custom')
+			{
+				$this->message('Checking '.$bcTemplate->name);
+				if (!$dbTemplate = $dbTemplates->Find('BigID',$bcTemplate->uuid))
+				{
+					if (!$dbTemplate = $dbTemplates->Find('Title', $bcTemplate->name))
+					{
+						$this->message('Creating: '.$bcTemplate->name);
+						$dbTemplate = WidgetTemplate::create();
+					}
+					$dbTemplate->loadApiData($bcTemplate);
+					$dbTemplate->write();
+				}
+				$syncedIDs[] = $dbTemplate->ID;
+			}
+		}
+		$removed = 0;
+		foreach($dbTemplates->Exclude('ID',$syncedIDs) as $removeTemplate)
+		{
+			$this->message($removeTemplate->Title.' no longer exists - removing');
+			$removeTemplate->BigID = null;
+			$removeTemplate->delete();
+			$removed++;
+		}
+		$this->message(($removed + count($syncedIDs)).' Templates Synced');
+	}
+	
 	protected function syncTemplate($class)
 	{
+		$class = base64_decode($class);
 		$className = ClassInfo::class_name($class);
 		if (!class_exists($className))
 		{
@@ -124,7 +228,7 @@ class RegisterWidgetTemplate extends BuildTask
 		try {
 			$this->message('Writing object');
 			$entity = $dbObject->Sync();
-			$dbObject->loadFromApi($entity);
+			$dbObject->loadApiData($entity);
 			$dbObject->forceChange(true);
 			$dbObject->write();
 		} catch (\Exception $e) {
@@ -159,9 +263,9 @@ class RegisterWidgetTemplate extends BuildTask
 		}
 		elseif ( (is_array($message)) || (is_object($message)) )
 		{
-			print '<pre>';
+			print '<pre><xmp>';
 			print_r($message);
-			print '</pre>';
+			print '</xmp></pre>';
 		}
 		else
 		{

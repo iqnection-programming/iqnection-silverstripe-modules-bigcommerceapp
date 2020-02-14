@@ -37,16 +37,7 @@ class WidgetTemplate extends DataObject implements ApiObjectInterface
 		return $this->Config()->get('template_title');
 	}
 	
-	public function getCMSFields()
-	{
-		$fields = parent::getCMSFields();
-//		$fields->addFieldToTab('Root.Main', Forms\DropdownField::create('ListItemClassName','List Item Type')
-//			->setSource($this->getListItemClassNames())
-//			->setEmptyString('-- Select --') );
-		return $fields;
-	}
-	
-	public function loadFromApi($data)
+	public function loadApiData($data)
 	{
 		if ($data)
 		{
@@ -88,13 +79,22 @@ class WidgetTemplate extends DataObject implements ApiObjectInterface
 		}
 		return $result;
 	}
-	
+		
 	public function ApiData()
 	{
-		return [
+		$html = (string) $this->forTemplate();
+		$html = preg_replace('/\n|\t|\r/','',$html);
+		$data = [
 			'name' => $this->getTitle(),
-			'template' => (string) $this->forTemplate(),
+			'template' => $html,
 		];
+		if ($this->BigID)
+		{
+			$data['uuid'] = $this->BigID;
+			$data['BigID'] = $this->BigID;
+		}
+		$this->extend('updateApiData',$data);
+		return $data;
 	}
 	
 	public function Unlink()
@@ -129,6 +129,30 @@ class WidgetTemplate extends DataObject implements ApiObjectInterface
 	{
 		$html = (string) $this->getTemplateHtml();
 		return $html;
+	}
+	
+	public function validateHandlebars()
+	{
+		$html = (string) $this->getTemplateHtml();
+		$html = $this->cleanHTML($html);
+		$errors = [];
+		if (preg_match('/{{[^#][^}]+?[^a-zA-Z0-9_|.}\s]+}}/',$html,$varMatches))
+		{
+			$errors[] = [
+				'error' => 'Invalid variable call',
+				'found' => $varMatches
+			];
+		}
+		$noHtml = preg_replace('/[^{}]*?({+[^}]+}+)[^{}]*/','',$html);
+		$noVariables = preg_replace('/{{2,3}[^#}\/]+}{2,3}/','',$noHtml);
+		if ( (preg_match('/{{#/',$noVariables)) && (preg_match('/{{#(\w+).*?{{\/\1}}/',$noVariables,$blockMatches)) )
+		{
+			$errors[] = [
+				'error' => 'Possible unclosed blocks',
+				'found' => $blockMatches
+			];
+		}
+		return $errors;
 	}
 	
 	protected function cleanHTML($html)

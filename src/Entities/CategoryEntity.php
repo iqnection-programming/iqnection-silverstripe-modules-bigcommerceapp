@@ -34,6 +34,7 @@ class CategoryEntity extends Entity
 			$data['name'] = substr($data['name'],0,50);
 		}
 		$data['parent_id'] = $data['parent_id'];
+		$this->extend('updateApiData',$data);
 		return $data;
 	}
 	
@@ -89,16 +90,23 @@ class CategoryEntity extends Entity
 //		return self::$_categoryTree;
 //	}
 	
-	public static function getCategoryByID($bigID)
+	public static function getById($id)
 	{
-		$inst = self::singleton();
-		$apiClient = $inst->ApiClient();
-		$page = 1;
-		$apiCategoriesResponse = $apiClient->getCategoryById($bigID);
-		$bcCategoryData = $apiCategoriesResponse->getData();
-		$newInst = Injector::inst()->create(static::class, []);
-		$newInst->loadApiData($bcCategoryData);
-		return $newInst;
+		if ($id)
+		{
+			$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__.$id);
+			$cachedData = self::fromCache($cacheName);
+			if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
+			{
+				$inst = Injector::inst()->create(static::class, []);
+				$apiClient = $inst->ApiClient();
+				$apiResponse = $apiClient->getCategoryById($id);
+				$inst->loadApiData($apiResponse->getData());
+				$cachedData = $inst;
+				self::toCache($cacheName, $inst);
+			}
+			return $cachedData;
+		}
 	}
 	
 	public static function getCategories($refresh = false)
