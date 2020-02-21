@@ -12,7 +12,9 @@
 	],
 	"require": {
 		"silverstripe/framework": "^4.1",
-		"iqnection-themes/bigcommerceapp": "dev-master"
+		"iqnection-themes/bigcommerceapp": "dev-master",
+		"moderntribe/bigcommerce-api-php-v3": "^2.0",
+		"unclecheese/dropzone": "dev-master"
 	},
 	"autoload": {
 		"psr-4": {

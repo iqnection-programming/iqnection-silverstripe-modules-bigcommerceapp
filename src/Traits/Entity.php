@@ -23,10 +23,7 @@ trait Entity
 		return $result;
 	}
 	
-	public function jsonSerialize()
-	{
-		return $this->toMap();
-	}
+	
 	
 	/**
 	 * Syncs/Pushes the entity data with BigCommerce
@@ -67,86 +64,71 @@ trait Entity
 //		return Forms\FieldList::create();
 //	}
 	
-	public function dropdownTitle()
-	{
-		return $this->name;
-	}
 	
-	public function forDropdown()
-	{
-		return [];
-	}
 	
 	public function delete() { }
 	
-	public function loadApiData($data)
-	{
-		return $this->_loadApiData($data);
-	}
+//	public function loadApiData($data)
+//	{
+//		return $this->_loadApiData($data);
+//	}
+//	
+//	public function _loadApiData($data)
+//	{
+//		$this->array = [];
+//		$this->api_data = $data;
+//		if ( (is_object($data)) && (method_exists($data, 'get')) )
+//		{
+//			foreach($data->get() as $key => $value)
+//			{
+//				if ( (is_object($value)) && (method_exists($value, 'get')) )
+//				{
+//					$value = $this->buildArrayData($value);
+//				}
+//				elseif (is_array($value))
+//				{
+//					$newValue = ArrayList::create();
+//					foreach($value as $subValue)
+//					{
+//						$newSubInst = Injector::inst()->create(static::class, []);
+//						$newSubInst->loadApiData($subValue);
+//						$newValue->push($newSubInst);
+//					}
+//					$value = $newValue;
+//				}
+//				$this->setField($key, $value);
+//				if (is_string($value))
+//				{
+//					$this->setField($key, trim($value));
+//				}
+//			}
+//		}
+//		return $this;
+//	}
 	
-	public function _loadApiData($data)
-	{
-		$this->array = [];
-		$this->api_data = $data;
-		if ( (is_object($data)) && (method_exists($data, 'get')) )
-		{
-			foreach($data->get() as $key => $value)
-			{
-				if ( (is_object($value)) && (method_exists($value, 'get')) )
-				{
-					$value = $this->buildArrayData($value);
-				}
-				elseif (is_array($value))
-				{
-					$newValue = ArrayList::create();
-					foreach($value as $subValue)
-					{
-						$newSubInst = Injector::inst()->create(static::class, []);
-						$newSubInst->loadApiData($subValue);
-						$newValue->push($newSubInst);
-					}
-					$value = $newValue;
-				}
-				$this->setField($key, $value);
-				if (is_string($value))
-				{
-					$this->setField($key, trim($value));
-//					$this->setField('match-'.$key, preg_replace('/[^a-zA-Z0-9]/','',strtolower(trim($value))));
-				}
-			}
-		}
-		return $this;
-	}
+//	protected function buildArrayData($data)
+//	{
+//		$arrayData = Injector::inst()->create(static::class, []);
+//		if ( (is_object($data)) && (method_exists($data, 'get')) )
+//		{
+//			foreach($data->get() as $key => $value)
+//			{
+//				if ( (is_object($value)) && (method_exists($value, 'get')) )
+//				{
+//					$value = $this->buildArrayData($value);
+//				}
+//				$arrayData->setField($key, $value);
+//				if (is_string($value))
+//				{
+//					$arrayData->setField($key, trim($value));
+//					$arrayData->setField('match-'.$key, preg_replace('/[^a-zA-Z0-9]/','',strtolower(trim($value))));
+//				}
+//			}
+//		}
+//		return $arrayData;
+//	}
 	
-	protected function buildArrayData($data)
-	{
-		$arrayData = Injector::inst()->create(static::class, []);
-		if ( (is_object($data)) && (method_exists($data, 'get')) )
-		{
-			foreach($data->get() as $key => $value)
-			{
-				if ( (is_object($value)) && (method_exists($value, 'get')) )
-				{
-					$value = $this->buildArrayData($value);
-				}
-				$arrayData->setField($key, $value);
-				if (is_string($value))
-				{
-					$arrayData->setField($key, trim($value));
-					$arrayData->setField('match-'.$key, preg_replace('/[^a-zA-Z0-9]/','',strtolower(trim($value))));
-				}
-			}
-		}
-		return $arrayData;
-	}
 	
-	public function ApiClient()
-	{
-		if ($clientClass = $this->Config()->get('client_class'))
-		{
-			return Client::inst()->Api(md5($clientClass), $clientClass);
-		}
-	}
 }
 
 

@@ -58,7 +58,7 @@ class Metafield extends DataExtension
 			'key' => $this->owner->key,
 			'value' => $this->owner->value,
 			'permission_set' => $this->owner->Config()->get('permission_set'),
-			'namespace' => $this->owner->Config()->get('namespace'),
+			'namespace' => (!$this->owner->namespace) ? $this->owner->Config()->get('namespace') : $this->owner->namespace,
 		];
 		$this->owner->invokeWithExtensions('updateApiData',$data);
 		return $data;

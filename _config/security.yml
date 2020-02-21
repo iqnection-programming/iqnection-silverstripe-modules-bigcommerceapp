@@ -1,0 +1,10 @@
+---
+Name: bcsecurity
+After:
+  - '#requestprocessors'
+---
+SilverStripe\Core\Injector\Injector:
+  IQnection\BigCommerceApp\App\Auth:
+    properties:
+      Authenticators:
+        default: '%$SilverStripe\Security\MemberAuthenticator\MemberAuthenticator'

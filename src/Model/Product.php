@@ -35,8 +35,12 @@ class Product extends DataObject implements ApiObjectInterface
 	
 	private static $default_sort = 'position ASC';
 	
-	private static $readonly_fields = [
+	private static $remove_fields = [
 		'position',
+	];
+	
+	private static $readonly_fields = [
+		'Title',
 		'sku'
 	];
 	

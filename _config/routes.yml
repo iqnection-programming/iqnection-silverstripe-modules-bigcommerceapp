@@ -8,4 +8,5 @@ SilverStripe\Control\Director:
     '_bc/products//$Action/$ID': 'IQnection\BigCommerceApp\App\Products'
     '_bc/categories//$Action/$ID': 'IQnection\BigCommerceApp\App\Categories'
     '_bc/logs//$Action/$ID': 'IQnection\BigCommerceApp\App\AppLogs'
+    '_bc/auth//$Action/$ID/$OtherID': 'IQnection\BigCommerceApp\App\Auth'
     '_bc//$Action/$ID': 'IQnection\BigCommerceApp\App\Main'

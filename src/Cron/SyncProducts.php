@@ -22,6 +22,7 @@ class SyncProducts extends Sync
 	
 	public function run($request)
 	{
+		$this->checkCli();
 		$this->_syncAllProducts($request);
 	}
 	

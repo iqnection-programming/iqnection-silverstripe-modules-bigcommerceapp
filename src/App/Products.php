@@ -63,7 +63,7 @@ $(document).ready(function(){
 				}
 			}
 		],
-		"ajax": "{$this->Link()}"
+		"ajax": "{$this->Link('search_api')}"
 	});
 });
 }(jQuery));

@@ -59,6 +59,7 @@ $editor->removeButtons(['formatselect']);
 $editor->setOption('importcss_selector_filter','.text');
 $editor->setOption('relative_urls',false);
 $editor->setOption('importcss_append',true);
+$editor->setOption('skin','silverstripe');
 $editor->setOption('body_class','typography');
 $extended_valid_elements = explode(',',$editor->getOption('extended_valid_elements'));
 $extended_valid_elements = array_merge(['-ol[start|class]','i[class]'],['table[border|cellpadding|cellspacing]'],$extended_valid_elements);

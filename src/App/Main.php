@@ -9,6 +9,7 @@ use IQnection\BigCommerceApp\Model\BigCommerceLog as BCLog;
 use IQnection\BigCommerceApp\Model\Notification;
 use SilverStripe\Security\Member;
 use SilverStripe\Security\Security;
+use SilverStripe\Security\MemberAuthenticator\MemberLoginForm;
 use SilverStripe\View\SSViewer;
 use SilverStripe\View\Requirements;
 use SilverStripe\View\ThemeResourceLoader;
@@ -25,15 +26,21 @@ use UncleCheese\Dropzone\FileAttachmentField;
 
 class Main extends Controller
 {
+
+	
 	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
 	
 	private static $install_url = 'https://login.bigcommerce.com/app/%s/install';
 	private static $url_segment = '_bc';
 	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
-	private static $theme_name = 'bigcommerceapp';
 	private static $managed_class;
 	
+	private static $extensions = [
+		\IQnection\BigCommerceApp\Extensions\DashboardTheme::class
+	];
+	
 	private static $allowed_actions = [
+		'ping',
 		'index',
 		'install',
 		'installerror',
@@ -45,8 +52,16 @@ class Main extends Controller
 		'relatedObjectForm',
 		'relationremove',
 		'edit',
+		'DashboardLoginForm',
 		'sort_items',
-		'_test' => 'ADMIN'
+		'apidata' => 'ADMIN'
+	];
+	
+	private static $public_actions = [
+		'load',
+		'uninstall',
+		'installerror',
+		'ping'
 	];
 	
 	private static $url_handlers = [
@@ -71,174 +86,52 @@ class Main extends Controller
 		]
 	];
 	
-	private static $theme_packages = [
-		'base',
-	];
-	
-	protected $package_includes = [
-		'base' => [
-			'css' => [
-				"assets/vendor/bootstrap/css/bootstrap.min.css",
-				"assets/vendor/fonts/circular-std/style.css",
-				"assets/libs/css/style.css",
-				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
-//				"assets/vendor/select2/css/select2.css",
-				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
-				"css/app.scss"
-			],
-			'js' => [
-//				"assets/vendor/jquery/jquery-3.3.1.min.js",
-				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
-				"assets/vendor/slimscroll/jquery.slimscroll.js",
-				"assets/libs/js/main-js.js",
-//				"assets/vendor/select2/js/select2.min.js",
-				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
-				"assets/vendor/shortable-nestable/Sortable.min.js",
-				"javascript/app.js"
-			]
-		],
-		'datatables' => [
-			'css' => [
-				"assets/vendor/datatables/css/dataTables.bootstrap4.css",
-				"assets/vendor/datatables/css/buttons.bootstrap4.css",
-				"assets/vendor/datatables/css/select.bootstrap4.css",
-				"assets/vendor/datatables/css/fixedHeader.bootstrap4.css"
-			],
-			'js' => [
-//				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
-//				"assets/vendor/datatables/js/buttons.bootstrap4.min.js",
-				"assets/vendor/datatables/js/data-table.js",
-//				"https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js",
-				"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js",
-				"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js",
-				"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js",
-				"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js",
-				"https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js",
-				"https://cdn.datatables.net/buttons/1.5.2/js/buttons.print.min.js",
-				"https://cdn.datatables.net/buttons/1.5.2/js/buttons.colVis.min.js",
-				"https://cdn.datatables.net/rowgroup/1.0.4/js/dataTables.rowGroup.min.js",
-				"https://cdn.datatables.net/select/1.2.7/js/dataTables.select.min.js",
-				"https://cdn.datatables.net/fixedheader/3.1.5/js/dataTables.fixedHeader.min.js"
-			]
-		],
-		'forms' => [
-			'css' => [],
-			'js' => [
-				"assets/vendor/inputmask/js/jquery.inputmask.bundle.js",
-//				"assets/vendor/jquery/jquery-3.3.1.min.js",
-				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
-				"assets/vendor/slimscroll/jquery.slimscroll.js",
-				"assets/vendor/parsley/parsley.js",
-				"assets/libs/js/main-js.js",
-			]
-		]
-	];
-	
-	protected static $_includedCss = [];
-	protected function combineCssFiles($css)
+	public function apidata()
 	{
-		$themeName = $this->Config()->get('theme_name');
-		$CssFiles = [];
-		foreach($css as $cssFile)
+		print "<pre><xmp>";
+		if ($relation = $this->relatedObject())
 		{
-			$cssFile = preg_replace('/^\//','',$cssFile);
-			if (in_array($cssFile, self::$_includedCss))
-			{
-				continue;
-			}
-			self::$_includedCss[] = $cssFile;
-			if (preg_match('/^http/',$cssFile))
-			{
-				Requirements::css($cssFile);
-				continue;
-			}
-			$cssFile = preg_replace('/\.css|\.scss/','',$cssFile);
-			// searching this way will favor a .scss file over .css
-			foreach(['.css','.scss'] as $ext)
-			{
-				if ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource($cssFile.$ext,array($themeName)))
-				{
-					$CssFiles[$cssFile] = $CssFilePath;
-				}
-				elseif ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource('css/'.$cssFile.$ext,array($themeName)))
-				{
-					$CssFiles[$cssFile] = $CssFilePath;
-				}
-			}
+			print "-----API Data\n";
+			print_r($relation->ApiData()); 
 		}
-		if (count($CssFiles))
+		elseif ($record = $this->currentRecord())
 		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles);
+			print "-----API Data\n";
+			print_r($record->ApiData());
+			print "\n\n-----Raw API Data\n";
+			print_r($record->RawApiData()->toMap());
+			print "\n\n-----Import Data\n";
+			print_r(json_decode($record->ImportData));
+			
 		}
-	}
-	
-	protected static $_includedJs = [];
-	protected function combineJsFiles($js)
-	{
-		$themeName = $this->Config()->get('theme_name');
-		$JsFiles = array();
-		foreach($js as $jsFile)
-		{
-			$jsFile = preg_replace('/^\//','',$jsFile);
-			if (in_array($jsFile, self::$_includedJs))
-			{
-				continue;
-			}
-			self::$_includedJs[] = $jsFile;
-			if (preg_match('/^http/',$jsFile))
-			{
-				Requirements::javascript($jsFile);
-				continue;
-			}
-			if ($JsFilePath = ThemeResourceLoader::inst()->findThemedJavascript($jsFile,array($themeName)))
-			{
-				$JsFiles[$JsFilePath] = $JsFilePath;
-			}
-		}
-
-		if (count($JsFiles))
-		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($JsFiles)).'.js', $JsFiles);	
-		}
-	}
-	
-	protected function loadThemePackage($packageName)
-	{
-		if (isset($this->package_includes[$packageName]))
-		{
-			if (isset($this->package_includes[$packageName]['css']))
-			{
-				$this->combineCssFiles($this->package_includes[$packageName]['css']);
-			}
-			if (isset($this->package_includes[$packageName]['js']))
-			{
-				$this->combineJsFiles($this->package_includes[$packageName]['js']);
-			}
-		}
-	}
-
-	protected function loadThemePackages()
-	{
-		foreach($this->Config()->get('theme_packages') as $packageName)
-		{
-			$this->loadThemePackage($packageName);
-		}
+		print '</xmp></pre>';
+		die();
 	}
 		
-	public function _test()
+	public function ping()
 	{
-		
+		return (bool) (Security::getCurrentUser());
 	}
 	
 	public function init()
 	{
 		parent::init();
+		if (!Security::getCurrentUser())
+		{
+			$publicActions = $this->Config()->get('public_actions');
+			$currentAction = $this->getRequest()->param('Action');
+			if ( (!in_array($currentAction, $publicActions)) && (!array_key_exists($currentAction, $publicActions)) )
+			{
+				return Auth::permissionFailure($this);
+			}
+		}
 		if (!$this->Config()->get('url_segment',Config::UNINHERITED))
 		{
 			user_error(get_class($this)." doesn't have a URL segment declared");
 		}
 		Requirements::customScript('window._search_url = "'.$this->AbsoluteLink('search_api').'";
-window._sort_url = "'.$this->AbsoluteLink('sort_items').'";');
+window._sort_url = "'.$this->AbsoluteLink('sort_items').'";
+window._ping_url = "'.$this->AbsoluteLink('ping').'";');
 		Requirements::javascript("https://code.jquery.com/jquery-3.4.1.min.js");
 		Requirements::javascript('silverstripe/admin:thirdparty/tinymce/tinymce.min.js');
 		Requirements::css('silverstripe/admin:client/dist/styles/editor.css');
@@ -246,13 +139,12 @@ window._sort_url = "'.$this->AbsoluteLink('sort_items').'";');
 <<<JS
 $('[data-editor="tinyMCE"]').each(function(){
 	var config = $(this).data('config');
+	config.skin = "silverstripe";
 	config.selector = '#'+$(this).attr('id');
 	tinymce.init(config);
 });
 JS
-		);
-		$this->setDashboardTheme();
-		$this->loadRequirements();
+		);		
 	}
 	
 	/**
@@ -442,57 +334,7 @@ JS
 		]);
 	}
 	
-	public function BootstrapForm(&$form)
-	{
-		$this->loadThemePackage('forms');
-		foreach($form->Fields()->saveableFields() as $field)
-		{
-			if ($field instanceof FileAttachmentField) { continue; }
-			$field->addExtraClass('mt-2 form-control');
-			if ( ($field instanceof Forms\CheckboxField) ||
-				($field instanceof Forms\CheckboxSetField) ||
-				($field instanceof Forms\OptionSetField) )
-			{
-				$field->addExtraClass('w-auto d-inline-block');
-			}
-		}
-		foreach($form->Fields() as $field)
-		{
-			if ($field instanceof Forms\CompositeField)
-			{
-				if ($field->hasClass('selectiongroup'))
-				{
-					$field->addExtraClass('p-0 m-0');
-				}
-				else
-				{
-					$field->addExtraClass('border p-3 mb-4');
-				}
-			}
-		}
-		foreach($form->Actions() as $action)
-		{
-			$action->addExtraClass('btn mt-2 mr-2');
-		}
-	}
 	
-	protected function loadRequirements()
-	{
-		$themeName = $this->Config()->get('theme_name');
-		Requirements::set_combined_files_folder('combined/'.$themeName);
-		$this->loadThemePackages();
-		$this->extend('updateRequirements');
-	}
-	
-	protected function setDashboardTheme()
-	{
-		$baseThemes = SSViewer::get_themes();
-		array_shift($baseThemes);
-		// Put the theme at the top of the list
-		array_unshift($baseThemes, $this->Config()->get('theme_name'));
-		SSViewer::set_themes(array_unique($baseThemes));
-		$this->extend('updateDashboardTheme');
-	}
 		
 	public function Link($action = null)
 	{
@@ -567,6 +409,47 @@ JS
 		return $links;
 	}
 	
+	public function BootstrapForm(&$form)
+	{
+		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
+		$bc_config = \SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::get('bigcommerce');
+		$this->loadThemePackage('forms');
+		foreach($form->Fields()->saveableFields() as $field)
+		{
+			if ($field instanceof FileAttachmentField) { continue; }
+			$field->addExtraClass('mt-2 form-control');
+			if ( ($field instanceof Forms\CheckboxField) ||
+				($field instanceof Forms\CheckboxSetField) ||
+				($field instanceof Forms\OptionSetField) )
+			{
+				$field->addExtraClass('w-auto d-inline-block');
+			}
+			
+			if ($field instanceof Forms\HTMLEditor\HTMLEditorField)
+			{
+				$field->setEditorConfig($bc_config);
+			}
+		}
+		foreach($form->Fields() as $field)
+		{
+			if ($field instanceof Forms\CompositeField)
+			{
+				if ($field->hasClass('selectiongroup'))
+				{
+					$field->addExtraClass('p-0 m-0');
+				}
+				else
+				{
+					$field->addExtraClass('border p-3 mb-4');
+				}
+			}
+		}
+		foreach($form->Actions() as $action)
+		{
+			$action->addExtraClass('btn mt-2 mr-2');
+		}
+	}
+	
 	public function updateNotification()
 	{
 		$status = $this->getRequest()->param('subAction');
@@ -585,11 +468,6 @@ JS
 			$notification->write();
 		}
 		return $this->redirectBack();
-	}
-	
-	public function login()
-	{
-		user_error(__FUNCTION__.' not built yet');
 	}
 	
 	public function logout()
@@ -872,11 +750,11 @@ JS
 		}
 		
 		$actions = Forms\FieldList::create(
-			Forms\FormAction::create('doSaveComponent','Save')
+			Forms\FormAction::create('doSaveComponent','Save')->addExtraClass('btn-success')
 		);
 		if ( ($relatedObject->Exists()) && ($relatedObject->CanDelete()) )
 		{
-			$actions->push(Forms\FormAction::create('doDeleteComponent','Delete')->addExtraClass('btn-danger ml-2'));
+			$actions->push(Forms\FormAction::create('doDeleteComponent','Delete')->addExtraClass('btn-outline-danger ml-2'));
 		}
 		
 		$validator = ($relatedObject->hasMethod('getFrontEndRequiredFields')) ? $relatedObject->getFrontEndRequiredFields($fields) : null;

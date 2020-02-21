@@ -19,6 +19,7 @@ class SyncWidgets extends Sync
 	
 	public function run($request)
 	{
+		$this->checkCli();
 		$this->_syncWidgets();
 	}
 	

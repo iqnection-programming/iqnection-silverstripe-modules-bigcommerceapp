@@ -57,6 +57,78 @@ class ProductEntity extends Entity
 		return $this;
 	}
 	
+	public function CustomFields()
+	{
+		$cachedData = ArrayList::create();
+		$inst = self::singleton();
+		$apiClient = $inst->ApiClient();
+		$page = 1;
+		if (!isset($filters['page']))
+		{
+			$filters['page'] = $page;
+		}
+		if (!isset($filters['limit']))
+		{
+			$filters['limit'] = 100;
+		}
+		$apiResponse = $apiClient->getCustomFields($this->id, $filters);
+		$responseMeta = $apiResponse->getMeta();
+		while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
+		{
+			foreach($apiRecords as $apiRecord)
+			{
+				$newInst = Injector::inst()->create(Entity::class, []);
+				$newInst->loadApiData($apiRecord);
+				$cachedData->push($newInst);
+			}
+			$page++;
+			$filters['page'] = $page;
+			if (count($apiRecords) < $filters['limit'])
+			{
+				break;
+			}
+			$apiResponse = $apiClient->getCustomFields($this->id, $filters);
+		}
+			
+		return $cachedData;
+	}
+	
+	public function Images()
+	{
+		$cachedData = ArrayList::create();
+		$inst = self::singleton();
+		$apiClient = $inst->ApiClient();
+		$page = 1;
+		if (!isset($filters['page']))
+		{
+			$filters['page'] = $page;
+		}
+		if (!isset($filters['limit']))
+		{
+			$filters['limit'] = 100;
+		}
+		$apiResponse = $apiClient->getProductImages($this->id, $filters);
+		$responseMeta = $apiResponse->getMeta();
+		while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
+		{
+			foreach($apiRecords as $apiRecord)
+			{
+				$newInst = Injector::inst()->create(Entity::class, []);
+				$newInst->loadApiData($apiRecord);
+				$cachedData->push($newInst);
+			}
+			$page++;
+			$filters['page'] = $page;
+			if (count($apiRecords) < $filters['limit'])
+			{
+				break;
+			}
+			$apiResponse = $apiClient->getProductImages($this->id, $filters);
+		}
+			
+		return $cachedData;
+	}
+	
 	public static function getProducts($refresh = false, $filters = [])
 	{
 		$cacheName = self::generateCacheKey(self::Config()->get('cache_name').__FUNCTION__);
@@ -121,7 +193,7 @@ class ProductEntity extends Entity
 		{
 			$id = $this->BigID;
 		}
-		return Modifier::getModifiers($id,$refresh);
+		return ModifierEntity::getModifiers($id,$refresh);
 	}
 	
 	public static function FeaturedProducts()

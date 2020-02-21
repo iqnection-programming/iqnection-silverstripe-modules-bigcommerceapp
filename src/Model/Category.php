@@ -38,6 +38,15 @@ class Category extends DataObject implements ApiObjectInterface
 	
 	private static $default_sort = 'sort_order ASC';
 	
+	private static $remove_fields = [
+		'position',
+	];
+	
+	private static $readonly_fields = [
+		'Title',
+		'sku'
+	];
+	
 	public function CanDelete($member = null, $context = []) { return false; }
 	
 	public function getFrontEndFields($params = [])
@@ -51,12 +60,7 @@ class Category extends DataObject implements ApiObjectInterface
 			'is_visible',
 			'layout_file'
 		]);
-		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
-		if ($base_description = $fields->dataFieldByName('base_description'))
-		{
-			$base_description_config = \SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::get('bigcommerce');
-			$base_description_config = $base_description->setEditorConfig($base_description_config);
-		}
+		
 		$this->extend('updateFrontEndFields',$fields);
 //		$fields->unshift($fields->dataFieldByName('Title')->setAttribute('disabled','disabled'));
 		
@@ -152,7 +156,7 @@ class Category extends DataObject implements ApiObjectInterface
 	{
 		if ($RawApiData = $this->RawApiData())
 		{
-			$link = Controller::join_links($RawApiData->custom_url->url,$action);
+			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$RawApiData->custom_url->url,$action);
 			$this->extend('updateLink',$link);
 			return $link;
 		}
@@ -162,7 +166,6 @@ class Category extends DataObject implements ApiObjectInterface
 	{
 		if ($link = $this->Link($action))
 		{
-			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$link);
 			$this->extend('updateAbsoluteLink',$link);
 			return $link;
 		}
