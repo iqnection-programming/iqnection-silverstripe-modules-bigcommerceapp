@@ -4,9 +4,11 @@ Name: iqbigcommerceroutes
 SilverStripe\Control\Director:
   rules:
     '_bc/ss': 'IQnection\BigCommerceApp\App\SSAdminRedirect'
+    '_bc/webhooks': 'IQnection\BigCommerceApp\App\Webhooks'
     '_bc/widgets//$Action/$ID': 'IQnection\BigCommerceApp\App\Widgets'
     '_bc/products//$Action/$ID': 'IQnection\BigCommerceApp\App\Products'
     '_bc/categories//$Action/$ID': 'IQnection\BigCommerceApp\App\Categories'
     '_bc/logs//$Action/$ID': 'IQnection\BigCommerceApp\App\AppLogs'
     '_bc/auth//$Action/$ID/$OtherID': 'IQnection\BigCommerceApp\App\Auth'
     '_bc//$Action/$ID': 'IQnection\BigCommerceApp\App\Main'
+    '_hook//$Action/$ID': 'IQnection\BigCommerceApp\Control\Listener'

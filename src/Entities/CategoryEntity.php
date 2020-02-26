@@ -65,30 +65,12 @@ class CategoryEntity extends Entity
 		$cachedData = self::fromCache($cacheName);
 		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
-			$allCategories = self::getCategories($refresh);
+			$allCategories = self::getAll($refresh);
 			$cachedData = $allCategories->Filter('parent_id',0);
 			self::toCache($cacheName, $cachedData);
 		}
 		return $cachedData;
 	}
-	
-//	protected static $_categoryTree;
-//	public static function getCategoryTree()
-//	{
-//		if (is_null(self::$_categoryTree))
-//		{
-//			$inst = self::singleton();
-//			$apiClient = $inst->ApiClient();
-//			self::$_categoryTree = ArrayList::create();
-//			foreach($apiClient->getCategoryTree()->getData() as $treeCat)
-//			{
-//				$newInst = Injector::inst()->create(static::class, []);
-//				$newInst->loadApiData($treeCat);
-//				self::$_categoryTree->push($newInst);
-//			}
-//		}
-//		return self::$_categoryTree;
-//	}
 	
 	public static function getById($id)
 	{
@@ -109,7 +91,7 @@ class CategoryEntity extends Entity
 		}
 	}
 	
-	public static function getCategories($refresh = false)
+	public static function getAll($refresh = false)
 	{
 		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'));
 		$cachedData = self::fromCache($cacheName);
@@ -166,7 +148,7 @@ class CategoryEntity extends Entity
 		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
 			$cachedData = [];
-			foreach(self::getCategories() as $bcCategory)
+			foreach(self::getAll() as $bcCategory)
 			{
 				$cachedData[$bcCategory->id] = $bcCategory->name;
 			}
@@ -209,7 +191,7 @@ class CategoryEntity extends Entity
 			$this->_children = self::fromCache($cacheName);
 			if ( (!self::isCached($cacheName)) || (!$this->_children) || ($refresh) )
 			{
-				$allCategories = self::getCategories($refresh);
+				$allCategories = self::getAll($refresh);
 				$this->_children = $allCategories->Filter('parent_id',$this->id);
 				self::toCache($cacheName, $this->_children);
 			}

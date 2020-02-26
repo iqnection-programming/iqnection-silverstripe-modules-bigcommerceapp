@@ -26,10 +26,9 @@ use UncleCheese\Dropzone\FileAttachmentField;
 
 class Main extends Controller
 {
-
-	
 	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
 	
+	private static $hidden = false;
 	private static $install_url = 'https://login.bigcommerce.com/app/%s/install';
 	private static $url_segment = '_bc';
 	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
@@ -76,7 +75,8 @@ class Main extends Controller
 		'Categories' => Categories::class,
 		'Widgets' => Widgets::class,
 		'SilverStripe' => SSAdminRedirect::class,
-		'Logs' => AppLogs::class
+		'Logs' => AppLogs::class,
+		'Webhooks' => Webhooks::class
 	];
 	
 	private static $nav_links = [
@@ -485,6 +485,10 @@ JS
 	
 	public function addAlert($message, $status = 'success')
 	{
+		if ( (is_object($message)) || (is_array($message)) )
+		{
+			$message = print_r($message,1);
+		}
 		$this->_Alerts[] = [
 			'Message' => $message,
 			'Status' => $status

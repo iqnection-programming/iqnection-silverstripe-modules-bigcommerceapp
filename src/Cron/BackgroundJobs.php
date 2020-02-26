@@ -29,6 +29,36 @@ class BackgroundJobs extends Sync
 				break;
 			}
 		}
+		$this->setupCleaner();
 		$this->message('Complete');
 	}
+	
+	public function setupCleaner()
+	{
+		if (BackgroundJob::get()->Filter(['CallClass' => static::class, 'CallMethod' => 'clean', 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
+		{
+			return;
+		}
+		$lastCleaned = BackgroundJob::get()->Filter(['CallClass' => static::class, 'CallMethod' => 'clean'])->Sort('CompleteDate','DESC')->First();
+		if ( (!$lastCleaned) || ( (!$lastCleaned->dbObject('CompleteDate')->IsToday()) && ($lastCleaned->dbObject('CompleteDate')->InPast()) ) )
+		{
+			BackgroundJob::CreateJob(static::class, 'clean');
+		}
+	}
+	
+	public function clean()
+	{
+		foreach(BackgroundJob::get()->Exclude('Status', [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING])->Filter('CompleteDate:LessThan', date('Y-m-d H:i:s', strtotime('-7 days'))) as $oldJob)
+		{
+			$oldJob->delete();
+		}
+	}
 }
+
+
+
+
+
+
+
+

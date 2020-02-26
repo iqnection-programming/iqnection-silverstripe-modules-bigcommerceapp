@@ -220,28 +220,10 @@ class WidgetPlacementEntity extends Entity
 	
 	public function loadApiData($data)
 	{
-		$this->_loadApiData($data);
 		$this->BigID = $data['uuid'];
 		$this->setTemplateConfig($data['template_file']);
 		return $this;
 	}
-	
-//	public function PageTitle()
-//	{
-//		if ($this->Template)
-//		{
-//			if ( ($this->Template->EntityClass) && ($this->EntityID) )
-//			{
-//				$EntityClass = Injector::inst()->get($this->Template->EntityClass);
-//				$dropdownOptions = $EntityClass->forDropdown();
-//				if (array_key_exists($this->EntityID, $dropdownOptions))
-//				{
-//					return $dropdownOptions[$this->EntityID];
-//				}
-//			}
-//			return $this->Template->Title;
-//		}
-//	}
 	
 	/**
 	 * API returns null

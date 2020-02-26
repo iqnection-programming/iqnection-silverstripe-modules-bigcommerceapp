@@ -28,7 +28,7 @@ class SyncCategories extends Sync
 		$this->message('Syncing Records from BigCommerce');
 		$bcCategoryEntity = Category::singleton()->Entity();
 		$this->message('Retrieving BigCommerce Categories');
-		$bcCategories = $bcCategoryEntity::getCategories(true);
+		$bcCategories = $bcCategoryEntity::getAll(true);
 		$this->message($bcCategories->Count().' BigCommerce Categories Found');
 		$this->message('Retrieving Database Categories');
 		$allDbCategoryIDs = Category::get()->Column('ID');

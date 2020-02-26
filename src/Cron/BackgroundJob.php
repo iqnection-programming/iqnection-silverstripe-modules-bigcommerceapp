@@ -21,6 +21,7 @@ class BackgroundJob extends DataObject
 		'Args' => 'Text',
 		'Status' => "Enum('open,running,complete,failed','open')",
 		'CompleteDate' => 'Datetime',
+		'Hash' => 'Varchar(255)',
 		'Logs' => 'Text'
 	];
 	
@@ -33,13 +34,22 @@ class BackgroundJob extends DataObject
 		return $this->CallClass.'::'.$this->CallMethod;
 	}
 	
-	public static function CreateJob($class, $method, $args = [])
+	public static function CreateJob($class, $method, $args = [], $hash = null)
 	{
+		if (!$hash)
+		{
+			$hash = md5(json_encode([$class, $method, $args]));
+		}
+		if ($existing = self::get()->Filter(['Hash' => $hash, 'Status' => ['open','running']])->First())
+		{
+			return $existing;
+		}
 		$job = new self;
 		$job->CallClass = $class;
 		$job->CallMethod = $method;
 		$job->Args = json_encode($args);
 		$job->Status = self::STATUS_OPEN;
+		$job->Hash = $hash;
 		$job->write();
 		return $job;
 	}
@@ -51,13 +61,27 @@ class BackgroundJob extends DataObject
 		try {
 			// no methods should be static, create an instance of the class
 			$className = ClassInfo::class_name($this->CallClass);
+			$args = json_decode($this->Args,1);
 			$inst = Injector::inst()->create($className);
+			// if we're provided an ID, get teh specific model
+			if ($inst instanceof DataObject)
+			{
+				if ( (isset($args['BigID'])) && ($dbInst = $className::get()->Find('BigID',$args['BigID'])) )
+				{
+					$inst = $dbInst;
+				}
+				elseif ( (isset($args['ID'])) && ($dbInst = $className::get()->byID($args['ID'])) )
+				{
+					$inst = $dbInst;
+				}
+			}
 			if (!ClassInfo::hasMethod($inst, $this->CallMethod))
 			{
 				throw new \Exception('Method '.$this->CallMethod.' does not exist in class '.$className,500);
 			}
+			
 			ob_start();
-			$result = call_user_func_array([$inst, $this->CallMethod], json_decode($this->Args,1));
+			$result = call_user_func_array([$inst, $this->CallMethod], $args);
 			$this->Logs .= "\nOutput:\n".ob_get_contents();
 			ob_end_clean();
 			$this->Status = self::STATUS_COMPLETE;

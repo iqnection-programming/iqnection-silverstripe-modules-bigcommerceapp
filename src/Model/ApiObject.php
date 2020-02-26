@@ -168,6 +168,11 @@ class ApiObject extends DataExtension
 		return $Entity;
 	}
 	
+	public function Pull()
+	{
+		user_error('The method Pull is not implemented on '.static::class);
+	}
+	
 	public function NewEntity()
 	{
 		if ($class = $this->owner->Config()->get('entity_class'))

@@ -91,7 +91,10 @@ class Category extends DataObject implements ApiObjectInterface
 		return Category::get()->byID($this->ParentID);
 	}
 	
-	public function Unlink() {}
+	public function Pull() 
+	{
+		return $this->SyncFromApi();
+	}
 	
 	public function loadApiData($data)
 	{
@@ -121,7 +124,7 @@ class Category extends DataObject implements ApiObjectInterface
 	
 	public function SyncFromApi()
 	{
-		$data = $this->Entity()->getCategoryByID($this->BigID);
+		$data = $this->Entity()->getByID($this->BigID);
 		$this->invokeWithExtensions('loadApiData',$data);
 		$this->write();
 		return $this;
