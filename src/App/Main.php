@@ -321,7 +321,7 @@ JS
 	
 	public function Title()
 	{
-		if ($action = $this->getAction())
+		if ( ($action = $this->getAction()) && ($action != 'index') )
 		{
 			$Title = ucwords($action);
 		}
@@ -330,7 +330,7 @@ JS
 			$nav = $this->Config()->get('nav_links', Config::UNINHERITED);
 			$Title = key($nav);
 		}
-		if ($currentRecord = $this->currentRecord())
+		if ( ($currentRecord = $this->currentRecord()) && ($currentRecord->Exists()) )
 		{
 			$Title .= ' | '.$currentRecord->getTitle();
 		}
@@ -838,18 +838,21 @@ JS
 			if (!$className = $this->getRequest()->requestVar('ClassName'))
 			{
 				$managedClass = $this->Config()->get('managed_class');
-			}			
-			if ($id = $this->getRequest()->requestVar('_ID'))
-			{
-				$this->_currentRecord = $managedClass::get()->byID($id);
 			}
-			elseif ($id = $this->getRequest()->param('ID'))
+			if ($managedClass)
 			{
-				$this->_currentRecord = $managedClass::get()->byID($id);
-			}
-			elseif ($managedClass::singleton()->CanCreate())
-			{
-				$this->_currentRecord = $managedClass::create();
+				if ($id = $this->getRequest()->requestVar('_ID'))
+				{
+					$this->_currentRecord = $managedClass::get()->byID($id);
+				}
+				elseif ($id = $this->getRequest()->param('ID'))
+				{
+					$this->_currentRecord = $managedClass::get()->byID($id);
+				}
+				elseif ($managedClass::singleton()->CanCreate())
+				{
+					$this->_currentRecord = $managedClass::create();
+				}
 			}
 		}
 		return $this->_currentRecord;

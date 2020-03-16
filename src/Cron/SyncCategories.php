@@ -75,9 +75,13 @@ class SyncCategories extends Sync
 			$removed++;
 		}
 		
-		$this->message($updated+$created+$removed.' Categories Synced');
-		$this->message($updated.' Categories Updated');
-		$this->message($created.' Categories Created');
-		$this->message($removed.' Categories Removed');
+		$notification = [
+			$updated+$created+$removed.' Categories Synced',
+			$updated.' Products Updated',
+			$created.' Products Created',
+			$removed.' Products Removed'
+		];
+		Notification::NotifyAll(implode("<br />", $notification));
+		$this->message($notification);
 	}
 }

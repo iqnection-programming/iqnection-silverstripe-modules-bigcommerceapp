@@ -13,6 +13,7 @@ use IQnection\BigCommerceApp\Entities\ProductEntity;
 use IQnection\BigCommerceApp\Model\Category;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
+use IQnection\BigCommerceApp\Model\Notification;
 
 class SyncProducts extends Sync
 {
@@ -91,10 +92,14 @@ class SyncProducts extends Sync
 			}
 		}
 		
-		$this->message($updated+$created+$removed.' Products Synced');
-		$this->message($updated.' Products Updated');
-		$this->message($created.' Products Created');
-		$this->message($removed.' Products Removed');
+		$notification = [
+			$updated+$created+$removed.' Products Synced',
+			$updated.' Products Updated',
+			$created.' Products Created',
+			$removed.' Products Removed'
+		];
+		Notification::NotifyAll(implode("<br />", $notification));
+		$this->message($notification);
 	}
 	
 	public function getBcProducts($page = 1, $limit = 200)
