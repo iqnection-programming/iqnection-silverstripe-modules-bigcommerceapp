@@ -14,7 +14,7 @@ class WebhookEntity extends Entity
 	use \IQnection\BigCommerceApp\Traits\Entity,
 		\IQnection\BigCommerceApp\Traits\Cacheable;
 	
-	private static $client_class = \BigCommerce\Api\v3\Api\WebhookApi::class;
+	private static $client_class = \IQnection\BigCommerceApp\Api\Api\WebhookApi::class;
 	private static $cache_name = 'bigcommerce-webhooks';
 	private static $additional_headers = [
 		'app_id' => 'law89ycrnl8arlaram93ruvc4mu4'
@@ -127,11 +127,11 @@ class WebhookEntity extends Entity
 		$id = $data['id'] ? $data['id'] : ($data['BigID'] ? $data['BigID'] : null);
 		if ($id)
 		{
-			$response = $apiClient->updateWebhook($id, new \BigCommerce\Api\v3\Model\WebhookPut($data));
+			$response = $apiClient->updateWebhook($id, new \IQnection\BigCommerceApp\Api\Model\WebhookPut($data));
 		}
 		else
 		{
-			$response = $apiClient->createWebhook(new \BigCommerce\Api\v3\Model\WebhookPost($data));
+			$response = $apiClient->createWebhook(new \IQnection\BigCommerceApp\Api\Model\WebhookPost($data));
 		}
 		$this->loadApiData($response->getData());
 		return $this;

@@ -5,11 +5,18 @@ namespace IQnection\BigCommerceApp\App;
 use SilverStripe\Security\Security;
 use SilverStripe\Security\Authenticator;
 use SilverStripe\Control\Controller;
+use IQnection\BigCommerceApp\Client;
+use IQnection\BigCommerceApp\Model\BigCommerceLog as BCLog;
+use SilverStripe\Security\Member;
+use SilverStripe\SiteConfig\SiteConfig;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Security\IdentityStore;
 
 class Auth extends Security
 {
 	private static $allowed_actions = [
 		'login',
+		'load',
 		'logout'
 	];
 	
@@ -21,6 +28,8 @@ class Auth extends Security
 	
 	private static $autologin_enabled = false;
 	
+	private static $frame_options = false;
+	
 	private static $template_main = 'IQnection\BigCommerceApp\App\Auth';
 	
 	private static $page_class = \IQnection\BigCommmerceApp\App\Main::class;
@@ -28,6 +37,16 @@ class Auth extends Security
 	private static $login_url = '_bc/auth/login';
 	
 	private static $logout_url = '_bc/auth/logout';
+	
+	public function Link($action = null)
+	{
+		return \SilverStripe\Control\Controller::join_links('/',$this->owner->Config()->get('url_segment'),$action);
+	}
+	
+	public function AbsoluteLink($action = null)
+	{
+		return preg_replace('/^http\:/','https:',\SilverStripe\Control\Director::absoluteURL($this->owner->Link($action)));
+	}
 	
 	public static function permissionFailure($controller = null, $messageSet = null)
 	{
@@ -42,11 +61,76 @@ class Auth extends Security
 		return $this->Form();
 	}
 	
-	public function Form()
+	/**
+	 * action used to load the App content into the iframe within the BigCommerce admin app interface
+	 */
+	public function load()
 	{
-		$form = parent::Form();
-if ($_SERVER['REMOTE_ADDR'] == '72.94.51.229'){ print "<pre>\nFile: ".__FILE__."\nLine: ".__LINE__."\nOutput: \n"; print_r($form); print '</pre>'; die(); }
-		$this->BootstrapForm($form);
-		return $form;
+		$signed_payload = $this->getRequest()->getVar('signed_payload');
+		if (!$data = $this->verifyBcSignedRequest($signed_payload))
+		{
+			return $this->Customise(['Error' => true, 'Content' => 'Invalid Store', 'ErrorData' => print_r([
+				'Payload' => $signed_payload,
+				'Payload Data' => $data
+			],1)]);
+		}
+		BCLog::info('Loading App', $data);
+		if (!$member = $this->validateAccess($data))
+		{
+			return $this->Customise(['Content' => 'Your account has not been activated yet', 'ErrorData' => print_r([
+				'Email' => $data['user']['email']
+			],1)]);
+		}
+		$identityStore = Injector::inst()->get(IdentityStore::class);
+        $identityStore->logIn($member, true, $this->getRequest());
+		
+		return $this->redirect(Injector::inst()->get(Main::class)->AbsoluteLink());
+	}
+	
+	/**
+	 * verifies the request is a valid BigCommerce request to load the app
+	 */
+	private function verifyBcSignedRequest($signedRequest) 
+	{
+		list($encodedData, $encodedSignature) = explode('.', $signedRequest, 2);
+	
+		// decode the data
+		$signature = base64_decode($encodedSignature);
+		$jsonStr = base64_decode($encodedData);
+		$data = json_decode($jsonStr, true);
+	
+		// confirm the signature
+		$expectedSignature = hash_hmac('sha256', $jsonStr, Client::Config()->get('client_secret'), $raw = false);
+		if (!hash_equals($expectedSignature, $signature)) 
+		{
+			error_log('Bad signed request from BigCommerce!');
+			return null;
+		}
+		return $data;
+	}
+	
+	private function validateAccess($payload) 
+	{
+		$SiteConfig = SiteConfig::current_site_config();
+		if (is_string($payload))
+		{
+			$payload = json_decode($payload,1);
+		}
+		if ($SiteConfig->BigCommerceStoreHash == $payload['store_hash'])
+		{
+			$userEmail = $payload['user']['email'];
+			$bgID = $payload['user']['id'];
+			if ($member = Member::get()->Find('BigCommerceID',$bgID))
+			{
+				return $member;
+			}
+			if ($member = Member::get()->Find('Email',$userEmail))
+			{
+				$member->BigCommerceID = $bgID;
+				$member->write();
+				return $member;
+			}
+		}
+		return false;
 	}
 }

@@ -17,12 +17,6 @@ class ProductMetafieldEntity extends MetafieldEntity
 	public function Sync() 
 	{
 		$apiClient = $this->ApiClient();
-		
-		$client = $apiClient->getApiClient();
-		$clientConfig = $client->getConfig();
-		$clientConfig->setClientId('dg93no1i0b2ob972j2m19qz7vt0ewpo');
-		$clientConfig->setAccessToken('s42i93nmbqy1eqyk7z64tw1cdiatb7p');
-
 		$data = $this->ApiData();
 		if ($data['id'])
 		{

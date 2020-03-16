@@ -18,14 +18,15 @@ class Webhooks extends Main
 	
 	private static $allowed_actions = [
 		'webhookSubscribeForm',
-		'deleteWebhook'
+		'deleteWebhook',
+		'pause',
 	];
 	
 	private static $nav_links = [
 		'Webhooks' => [
 			'path' => '',
 			'icon' => 'lock',
-			'target' => '_blank'
+			'dev' => true
 		]
 	];
 	
@@ -33,8 +34,29 @@ class Webhooks extends Main
 	{
 		$currentWebhooks = WebhookEntity::getAll();
 		return $this->Customise([
-			'BCWebhooks' => $currentWebhooks
+			'BCWebhooks' => $currentWebhooks,
 		]);
+	}
+	
+	public function pause()
+	{
+		$id = $this->getRequest()->param('ID');
+		$active = $this->getRequest()->getVar('active');
+		$entity = WebhookEntity::create(['id' => $id]);
+		$entity->is_active = (bool) $active;
+		try {
+			$entity->Sync();
+			WebhookEntity::getAll(true);
+			$this->addAlert('Webhook Updated');
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
+			if (method_exists($e,'getResponseBody'))
+			{
+				$this->addAlert($e->getResponseBody(), 'danger');
+			}
+		}
+		return $this->redirectBack();
+		
 	}
 	
 	public function webhookSubscribeForm()

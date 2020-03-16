@@ -13,6 +13,7 @@ trait Cacheable
     	Injectable;
 	
 	private static $cache_namespace = 'bcCache';
+	private static $cache_lifetime = 3600;
 	
 	public static function generateCacheKey($arg1)
 	{
@@ -25,8 +26,12 @@ trait Cacheable
 		return Injector::inst()->get(CacheInterface::class . '.' . self::Config()->get('cache_namespace'));
 	}
 	
-	public static function toCache($name, $data, $lifetime = 300)
+	public static function toCache($name, $data, $lifetime = null)
 	{
+		if ( (is_null($lifetime)) || ($lifetime === false) )
+		{
+			$lifetime = self::Config()->get('cache_lifetime');
+		}
 		return self::cacheInterface()->set($name, $data, $lifetime);
 	}
 	

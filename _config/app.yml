@@ -10,3 +10,17 @@ SilverStripe\Core\Injector\Injector:
     factory: SilverStripe\Core\Cache\CacheFactory
     constructor:
       namespace: "bcCache"
+IQnection\BigCommerceApp\Cron\BackgroundJobs:
+  recurring_jobs:
+    'sync_categories':
+      'call_class': 'IQnection\BigCommerceApp\Cron\SyncCategories'
+      'call_method': 'run'
+      'hours': 0
+    'sync_products':
+      'call_class': 'IQnection\BigCommerceApp\Cron\SyncProducts'
+      'call_method': 'run'
+      'hours': 1
+    'background_job_cleaner':
+      'call_class': 'IQnection\BigCommerceApp\Cron\BackgroundJobs'
+      'call_method': 'clean'
+      'hours': 2

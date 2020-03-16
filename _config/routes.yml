@@ -4,6 +4,7 @@ Name: iqbigcommerceroutes
 SilverStripe\Control\Director:
   rules:
     '_bc/ss': 'IQnection\BigCommerceApp\App\SSAdminRedirect'
+    '_bc/install': 'IQnection\BigCommerceApp\App\Install'
     '_bc/webhooks': 'IQnection\BigCommerceApp\App\Webhooks'
     '_bc/widgets//$Action/$ID': 'IQnection\BigCommerceApp\App\Widgets'
     '_bc/products//$Action/$ID': 'IQnection\BigCommerceApp\App\Products'

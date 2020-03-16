@@ -11,6 +11,8 @@ class Entity extends ArrayData implements \JsonSerializable
 {
 	use \IQnection\BigCommerceApp\Traits\Cacheable;
 	
+	private static $client_class;
+	private static $api_class = \IQnection\BigCommerceApp\ClientV3::class;
 	private static $_childEntitiesMap = [];
 	protected $loadedData;
 	
@@ -19,20 +21,7 @@ class Entity extends ArrayData implements \JsonSerializable
 		$data = $this->toMap();
 		foreach($data as $key => &$value)
 		{
-			if ( (is_array($value)) && (count($value)) )
-			{
-				foreach($value as &$subValue)
-				{
-					if ( (is_object($subValue)) && (method_exists($subValue, 'ApiData')) )
-					{
-						$subValue = $subValue->ApiData();
-					}
-				}
-			}
-			elseif ( (is_object($value)) && (method_exists($value, 'ApiData')) )
-			{
-				$value = $value->ApiData();
-			}
+			$value = $this->extractApiData($value);
 		}
 		unset($data['api_data']);
 		if ( (!$data['id']) && ($data['BigID']) )
@@ -41,6 +30,38 @@ class Entity extends ArrayData implements \JsonSerializable
 		}
 		$this->invokeWithExtensions('updateApiData', $data);
 		return $data;
+	}
+	
+	public function extractApiData($value)
+	{
+		$returnValue = $value;
+		if (is_array($value))
+		{
+			$returnValue = [];
+			if (count($value))
+			{
+				foreach($value as $subValue)
+				{
+					$returnValue[] = $this->extractApiData($subValue);
+				}
+			}
+		}
+		elseif (is_object($value))
+		{
+			if  (method_exists($value, 'ApiData'))
+			{
+				$returnValue = $value->ApiData();
+			} 
+			elseif ($value instanceof ArrayList)
+			{
+				$returnValue = [];
+				foreach($value as $subValue)
+				{
+					$returnValue[] = $this->extractApiData($subValue);
+				}
+			}
+		}
+		return $returnValue;
 	}
 	
 	public function jsonSerialize()
@@ -66,19 +87,23 @@ class Entity extends ArrayData implements \JsonSerializable
 			}
 			elseif (is_array($value))
 			{
-				$childClass = Entity::class;
-				if (array_key_exists($key, $childEntitiesMap))
+				// if not an associative
+				if ( (!array_key_exists(0, $value)) || (array_key_last($value) != (count($value) - 1)) )
 				{
-					$childClass = $childEntitiesMap[$key];
+					$childClass = Entity::class;
+					if (array_key_exists($key, $childEntitiesMap))
+					{
+						$childClass = $childEntitiesMap[$key];
+					}
+					$newValue = ArrayList::create();
+					foreach($value as $subValue)
+					{
+						$newSubInst = Injector::inst()->create($childClass, []);
+						$newSubInst->loadApiData($subValue);
+						$newValue->push($newSubInst);
+					}
+					$value = $newValue;
 				}
-				$newValue = ArrayList::create();
-				foreach($value as $subValue)
-				{
-					$newSubInst = Injector::inst()->create($childClass, []);
-					$newSubInst->loadApiData($subValue);
-					$newValue->push($newSubInst);
-				}
-				$value = $newValue;
 			}
 			$this->setField($key, $value);
 			if (is_string($value))
@@ -119,9 +144,9 @@ class Entity extends ArrayData implements \JsonSerializable
 	
 	public function ApiClient()
 	{
-		if ($clientClass = $this->Config()->get('client_class'))
+		if ( ($clientClass = $this->Config()->get('client_class')) && ($apiClass = $this->Config()->get('api_class')) )
 		{
-			return Client::inst()->Api(md5($clientClass), $clientClass);
+			return $apiClass::inst()->Api(md5($clientClass), $clientClass);
 		}
 	}
 }

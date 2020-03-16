@@ -10,6 +10,7 @@ use IQnection\BigCommerceApp\Model\Product;
 use SilverStripe\Control\Controller;
 use SilverStripe\SiteConfig\SiteConfig;
 use IQnection\BigCommerceApp\Archive\Archivable;
+use IQnection\BigCommerceApp\Cron\BackgroundJob;
 
 class Category extends DataObject implements ApiObjectInterface
 {
@@ -39,7 +40,8 @@ class Category extends DataObject implements ApiObjectInterface
 	private static $default_sort = 'sort_order ASC';
 	
 	private static $remove_fields = [
-		'position',
+		'sort_order',
+		'description'
 	];
 	
 	private static $readonly_fields = [
@@ -67,11 +69,20 @@ class Category extends DataObject implements ApiObjectInterface
 		return $fields;
 	}
 	
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		if ($this->NeedsSync)
+		{
+			BackgroundJob::CreateJob(static::class, 'Pull', ['ID' => $this->ID]);
+		}
+	}
+	
 	public function ApiData() 
 	{
 		$data = [
-			'description' => $this->description,
-			'sort_order' => $this->sort_order,
+//			'description' => $this->description,
+//			'sort_order' => $this->sort_order,
 			'name' => $this->Title
 		];
 		if ($parent = $this->Parent())
@@ -91,17 +102,13 @@ class Category extends DataObject implements ApiObjectInterface
 		return Category::get()->byID($this->ParentID);
 	}
 	
-	public function Pull() 
-	{
-		return $this->SyncFromApi();
-	}
-	
 	public function loadApiData($data)
 	{
 		if ($data)
 		{
 			$this->BigID = $data->id;
 			$this->Title = $data->name;
+			$this->is_visible = $data->is_visible;
 			if ($data->parent_id === 0)
 			{
 				$this->ParentID = 0;
@@ -118,8 +125,13 @@ class Category extends DataObject implements ApiObjectInterface
 		{
 			$this->BigID = null;
 		}
-		$this->invokeWithExtensions('updateLoadFromApi',$data);
+		$this->invokeWithExtensions('updateLoadApiData',$data);
 		return $this;
+	}
+	
+	public function Pull() 
+	{
+		return $this->SyncFromApi();
 	}
 	
 	public function SyncFromApi()

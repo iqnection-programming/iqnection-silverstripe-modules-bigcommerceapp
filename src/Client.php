@@ -15,55 +15,37 @@ class Client
 {
 	use Configurable, Extensible, Injectable;
 	
-	private static $api_url = 'https://api.bigcommerce.com/stores/%s/v3';
+	private static $api_url;
 	private static $client_id;
 	private static $client_secret;
 	private static $debug = false;
 	
 	protected static $_inst;
-	protected $_bc_apis = [];	
+	protected static $_bc_apis = [];	
 	protected $_api_config;
 	protected $_api_client;
 	
+	/**
+	 * Builds the config object for the current client
+	 * This method is required in case the configuration 
+	 * needs to be changed in mid-execution
+	 * This method will be specific to the client class
+	 */
+	public function ApiConfig() {}
+	
+	/*
+	 * Builds and provides the API client for the particular
+	 * API version
+	 */
+	public function ApiClient() {}
+	
 	public static function inst()
 	{
-		if (is_null(self::$_inst))
+		if (is_null(static::$_inst))
 		{
-			self::$_inst = Injector::inst()->get(Client::class);
+			static::$_inst = Injector::inst()->get(static::class);
 		}
-		return self::$_inst;
-	}
-	
-	public function ApiConfig()
-	{
-		if (is_null($this->_api_config))
-		{
-			$this->_api_config = new BcConfig();
-			$this->_api_config->setHost($this->getApiUrl());
-			$this->_api_config->setClientId($this->Config()->get('client_id'));
-			$this->_api_config->setAccessToken(SiteConfig::current_site_config()->BigCommerceApiAccessToken);
-			if ($this->Config()->get('debug'))
-			{
-				$this->setDebug(true);
-			}
-		}
-		return $this->_api_config;
-	}
-	
-	public function setDebug($on = true)
-	{
-		$this->_api_config->setDebug($on);
-		if ($on) { $this->_api_config->setDebugFile(BASE_PATH.'/bc-debug.log'); }
-		return $this;
-	}
-	
-	public function ApiClient()
-	{
-		if (is_null($this->_api_client))
-		{
-			$this->_api_client = new BcClient($this->ApiConfig());
-		}
-		return $this->_api_client;
+		return static::$_inst;
 	}
 	
 	protected function getApiUrl()
@@ -85,15 +67,15 @@ class Client
 			$key = md5($className);
 		}
 		$key = strtolower($key);
-		if (!isset($this->_bc_apis[$key]))
+		if (!isset(self::$_bc_apis[$key]))
 		{
 			if (!class_exists($className))
 			{
 				throw new \Exception('Class '.$className.' Not Found');
 			}
-			$this->_bc_apis[$key] = new $className($this->ApiClient());
+			self::$_bc_apis[$key] = new $className($this->ApiClient());
 		}
-		return $this->_bc_apis[$key];
+		return self::$_bc_apis[$key];
 	}
 }
 

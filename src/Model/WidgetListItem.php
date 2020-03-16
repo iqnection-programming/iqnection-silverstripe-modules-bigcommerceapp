@@ -72,10 +72,10 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 	
 	public function WidgetData()
 	{
-		return ArrayData::create([
+		return [
 			'id' => $this->ID,
 			'title' => $this->Title
-		]);
+		];
 	}
 	
 	public function forTemplate()

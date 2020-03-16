@@ -103,7 +103,7 @@ class Widget extends DataObject implements ApiObjectInterface
 		{
 			$this->BigID = null;
 		}
-		$this->invokeWithExtensions('updateLoadFromApi',$data);
+		$this->invokeWithExtensions('updateLoadApiData',$data);
 		return $this;
 	}
 	
@@ -117,14 +117,14 @@ class Widget extends DataObject implements ApiObjectInterface
 	 *	)
 	 * @returns object ArrayList
 	 */
-	protected $_collections;
-	public function Collections()
+	protected $_relatedObjects;
+	public function RelatedObjects()
 	{
-		if (is_null($this->_collections))
+		if (is_null($this->_relatedObjects))
 		{
-			$this->_collections = ArrayList::create();
+			$this->_relatedObjects = ArrayList::create();
 		}
-		return $this->_collections;
+		return $this->_relatedObjects;
 	}
 	
 	public static function getTypes()
@@ -222,7 +222,7 @@ class Widget extends DataObject implements ApiObjectInterface
 			}
 			foreach($removePlacements as $removePlacement)
 			{
-				$removePlacement->remove();
+				$removePlacement->delete();
 			}
 		}
 		else

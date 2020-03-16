@@ -23,15 +23,15 @@ use SilverStripe\Forms;
 use IQnection\BigCommerceApp\Model\Product;
 use IQnection\BigCommerceApp\Model\Category;
 use UncleCheese\Dropzone\FileAttachmentField;
+use SilverStripe\Control\Director;
+use SilverStripe\Control\Cookie;
 
 class Main extends Controller
 {
 	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
 	
 	private static $hidden = false;
-	private static $install_url = 'https://login.bigcommerce.com/app/%s/install';
 	private static $url_segment = '_bc';
-	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
 	private static $managed_class;
 	
 	private static $extensions = [
@@ -41,10 +41,6 @@ class Main extends Controller
 	private static $allowed_actions = [
 		'ping',
 		'index',
-		'install',
-		'installerror',
-		'load',
-		'uninstall',
 		'search_api',
 		'recordForm',
 		'relation',
@@ -53,6 +49,9 @@ class Main extends Controller
 		'edit',
 		'DashboardLoginForm',
 		'sort_items',
+		'doDelete',
+		'doUnlink',
+		'pull',
 		'apidata' => 'ADMIN'
 	];
 	
@@ -66,7 +65,8 @@ class Main extends Controller
 	private static $url_handlers = [
 		'notification//$subAction!/$ID!' => 'updateNotification',
 		'edit/$ID/relationremove/$ComponentName!/$RelatedID' => 'relationremove',
-		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation'
+		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation',
+		'edit/$ID/pull/' => 'pull'
 	];
 
 	private static $apps = [
@@ -85,6 +85,19 @@ class Main extends Controller
 			'icon' => 'home'
 		]
 	];
+	
+	public function pull()
+	{
+		$record = $this->currentRecord();
+		try {
+			$record->Pull();
+			$this->addAlert('Data Synced');
+		} catch (\Exception $e) {
+			$this->addAlert('There was an error syncing the data','danger');
+			$this->addAlert(print_r($e->getMessage(),1),'danger');
+		}
+		return $this->redirect($this->Link('edit/'.$record->ID));
+	}
 	
 	public function apidata()
 	{
@@ -124,6 +137,10 @@ class Main extends Controller
 			{
 				return Auth::permissionFailure($this);
 			}
+		}
+		if (array_key_exists('bc_show_all_apps',$_GET))
+		{
+			Cookie::set('bc_show_all_apps',$_GET['bc_show_all_apps']);
 		}
 		if (!$this->Config()->get('url_segment',Config::UNINHERITED))
 		{
@@ -180,11 +197,12 @@ JS
 	{
 		$records = Category::get();
 		$recordsTotal = $records->Count();
-
-		if (trim($search['value']))
+		$searchTerm = trim($search['value']);
+		if ($searchTerm)
 		{
 			$records = $records->FilterAny([
-				'Title:PartialMatch' => trim($search['value']),
+				'BigID:ExactMatch' => $searchTerm,
+				'Title:PartialMatch' => $searchTerm,
 			]);
 		}
 		if ($orders = $this->getRequest()->requestVar('order'))
@@ -241,12 +259,13 @@ JS
 	{
 		$products = Product::get();
 		$recordsTotal = $products->Count();
-
-		if (trim($search['value']))
+		$searchTerm = trim($search['value']);
+		if ($searchTerm)
 		{
 			$products = $products->FilterAny([
-				'sku:PartialMatch' => trim($search['value']),
-				'Title:PartialMatch' => trim($search['value']),
+				'BigID:ExactMatch' => $searchTerm,
+				'sku:PartialMatch' => $searchTerm,
+				'Title:PartialMatch' => $searchTerm,
 			]);
 		}
 		if ($orders = $this->getRequest()->requestVar('order'))
@@ -302,8 +321,20 @@ JS
 	
 	public function Title()
 	{
-		$nav = $this->Config()->get('nav_links', Config::UNINHERITED);
-		return key($nav);
+		if ($action = $this->getAction())
+		{
+			$Title = ucwords($action);
+		}
+		else
+		{
+			$nav = $this->Config()->get('nav_links', Config::UNINHERITED);
+			$Title = key($nav);
+		}
+		if ($currentRecord = $this->currentRecord())
+		{
+			$Title .= ' | '.$currentRecord->getTitle();
+		}
+		return $Title;
 	}
 	
 	public function Dashboard()
@@ -334,18 +365,6 @@ JS
 		]);
 	}
 	
-	
-		
-	public function Link($action = null)
-	{
-		return \SilverStripe\Control\Controller::join_links('/',$this->Config()->get('url_segment'),$action);
-	}
-	
-	public function AbsoluteLink($action = null)
-	{
-		return \SilverStripe\Control\Director::absoluteURL($this->Link($action));
-	}
-	
 	public function NavLinks()
 	{
 		if (!$links = $this->Config()->get('nav_links',Config::UNINHERITED))
@@ -371,7 +390,10 @@ JS
 					$active = ( ($path == '#') && (empty($action)) );
 				}
 			}
-	
+			if ( (array_key_exists('dev', $details)) && ($details['dev']) && (!Director::isDev()) )
+			{
+				continue;
+			}
 			$links->push(ArrayData::create([
 				'Title' => $title,
 				'ID' => md5(json_encode($details)),
@@ -388,21 +410,29 @@ JS
 	public function Menu()
 	{
 		$links = ArrayList::create();
+		$showAll = Cookie::get('bc_show_all_apps');
 		foreach($this->Config()->get('apps') as $app)
 		{
 			$singleton = Injector::inst()->get($app);
-			foreach($singleton->NavLinks() as $title => $details)
+			if ( (!$singleton->Config()->get('hidden')) || ($showAll) )
 			{
-				$details = (!is_array($details)) ? [$details] : $details;
-				$links->push(ArrayData::create([
-					'Title' => $title,
-					'ID' => md5(json_encode($details)),
-					'Link' => (array_key_exists('path',$details)) ? $singleton->Link($details['path']) : '#',
-					'Icon' => (array_key_exists('icon',$details)) ? $details['icon'] : 'hockey-puck',
-					'Children' => ((isset($details['children']))&&(is_array($details['children']))) ? $this->BuildNavChildren($details['children'],$singleton) : ArrayList::create(),
-          			'Active' => (get_class(Controller::curr()) == $app),
-          			'Target' => (isset($details['target'])) ? $details['target'] : false,
-				]));
+				foreach($singleton->NavLinks() as $title => $details)
+				{
+					$details = (!is_array($details)) ? [$details] : $details;
+					if ( (array_key_exists('dev', $details)) && ($details['dev']) && (!Director::isDev()) )
+					{
+						continue;
+					}
+					$links->push(ArrayData::create([
+						'Title' => $title,
+						'ID' => md5(json_encode($details)),
+						'Link' => (array_key_exists('path',$details)) ? $singleton->Link($details['path']) : '#',
+						'Icon' => (array_key_exists('icon',$details)) ? $details['icon'] : 'hockey-puck',
+						'Children' => ((isset($details['children']))&&(is_array($details['children']))) ? $this->BuildNavChildren($details['children'],$singleton) : ArrayList::create(),
+						'Active' => (get_class(Controller::curr()) == $app),
+						'Target' => (isset($details['target'])) ? $details['target'] : false,
+					]));
+				}
 			}
 		}
 		$this->extend('updateMenu',$links);
@@ -446,7 +476,7 @@ JS
 		}
 		foreach($form->Actions() as $action)
 		{
-			$action->addExtraClass('btn mt-2 mr-2');
+			$action->addExtraClass('btn mt-2 mr-2 btn-primary');
 		}
 	}
 	
@@ -535,60 +565,61 @@ JS
 	 */
 	public function install()
 	{
-		BCLog::info('Initial Install', $this->getRequest()->requestVars());
-		if ($installStatus = $this->getRequest()->getVar('external_install'))
-		{
-			return $this->confirmInstall($installStatus);
-		}
-		if (!$member = Security::getCurrentUser())
-		{
-			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
-			Once this is ready, come back and initiate the install process again.';
-			return Security::permissionFailure($this, $message);
-			return $this->Customise(['Content' => $message])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
-		}
-		$siteconfig = SiteConfig::current_site_config();
-		$code = $this->getRequest()->getVar('code');
-		$scope = $this->getRequest()->getVar('scope');
-		$context = $this->getRequest()->getVar('context');
-		
-		$client = new \GuzzleHttp\Client();
-		$postBack = [
-			'client_id' => Client::Config()->get('client_id'),
-			'client_secret' => Client::Config()->get('client_secret'),
-			'code' => $code,
-			'scope' => $scope,
-			'grant_type' => 'authorization_code',
-			'redirect_uri' => $siteconfig->getBigCommerceAuthCallbackUrl(),
-			'context' => $context
-		];
-		BCLog::info('Installing Postback', $postBack);
-		$response = $client->request('POST', $this->Config()->get('install_post_back_url'), [
-			'headers' => [
-				'Content-Type' => 'application/json'
-			],
-			'json' => $postBack
-		]);
-		$responseData = json_decode((string) $response->getBody());
-		BCLog::info('Install Postback Response', $responseData);
-		if ($access_token = $responseData->access_token)
-		{
-			$member = Security::getCurrentUser();
-			$member->BigCommerceID = $responseData->user->id;
-			$member->write();
-
-			$siteconfig->BigCommerceStoreHash = preg_replace('/.*?\/([a-zA-Z0-9_-]+)/','$1',$responseData->context);
-			$siteconfig->BigCommerceApiAccessToken = $access_token;
-			$siteconfig->BigCommerceApiScope = $responseData->scope;
-			$siteconfig->write();
-			return $this;
-		}
-		return $this->redirect($this->Link('installerror'));
+		return;
+//		BCLog::info('Initial Install', $this->getRequest()->requestVars());
+//		if ($installStatus = $this->getRequest()->getVar('external_install'))
+//		{
+//			return $this->confirmInstall($installStatus);
+//		}
+//		if (!$member = Security::getCurrentUser())
+//		{
+//			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
+//			Once this is ready, come back and initiate the install process again.';
+//			return Security::permissionFailure($this, $message);
+//			return $this->Customise(['Content' => $message])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
+//		}
+//		$siteconfig = SiteConfig::current_site_config();
+//		$code = $this->getRequest()->getVar('code');
+//		$scope = $this->getRequest()->getVar('scope');
+//		$context = $this->getRequest()->getVar('context');
+//		
+//		$client = new \GuzzleHttp\Client();
+//		$postBack = [
+//			'client_id' => Client::Config()->get('client_id'),
+//			'client_secret' => Client::Config()->get('client_secret'),
+//			'code' => $code,
+//			'scope' => $scope,
+//			'grant_type' => 'authorization_code',
+//			'redirect_uri' => $siteconfig->getBigCommerceAuthCallbackUrl(),
+//			'context' => $context
+//		];
+//		BCLog::info('Installing Postback', $postBack);
+//		$response = $client->request('POST', $this->Config()->get('install_post_back_url'), [
+//			'headers' => [
+//				'Content-Type' => 'application/json'
+//			],
+//			'json' => $postBack
+//		]);
+//		$responseData = json_decode((string) $response->getBody());
+//		BCLog::info('Install Postback Response', $responseData);
+//		if ($access_token = $responseData->access_token)
+//		{
+//			$member = Security::getCurrentUser();
+//			$member->BigCommerceID = $responseData->user->id;
+//			$member->write();
+//
+//			$siteconfig->BigCommerceStoreHash = preg_replace('/.*?\/([a-zA-Z0-9_-]+)/','$1',$responseData->context);
+//			$siteconfig->BigCommerceApiAccessToken = $access_token;
+//			$siteconfig->BigCommerceApiScope = $responseData->scope;
+//			$siteconfig->write();
+//			return $this;
+//		}
+//		return $this->redirect($this->Link('installerror'));
 	}
 	
 	public function installerror()
 	{
-		return $this->Customise(['HideNav' => true]);
+//		return $this->Customise(['HideNav' => true]);
 	}
 	
 	/**
@@ -596,16 +627,16 @@ JS
 	 */
 	private function confirmInstall($installStatus)
 	{
-		$successUrl = sprintf('https://login.bigcommerce.com/app/%s/install/succeeded', Client::Config()->get('client_id'));
-		$failUrl = sprintf('https://login.bigcommerce.com/app/%s/install/failed', Client::Config()->get('client_id'));
-		$client = new \GuzzleHttp\Client();
-		$callUrl = (empty($installStatus)) ? $failUrl : $successUrl;
-		$response = $client->request($callUrl);
-		if (empty($installStatus))
-		{
-			return $this->renderWith(['BigCommerceInstallError']);
-		}
-		return $this->renderWith(['BigCommerceInstallComplete']);
+//		$successUrl = sprintf('https://login.bigcommerce.com/app/%s/install/succeeded', Client::Config()->get('client_id'));
+//		$failUrl = sprintf('https://login.bigcommerce.com/app/%s/install/failed', Client::Config()->get('client_id'));
+//		$client = new \GuzzleHttp\Client();
+//		$callUrl = (empty($installStatus)) ? $failUrl : $successUrl;
+//		$response = $client->request($callUrl);
+//		if (empty($installStatus))
+//		{
+//			return $this->renderWith(['BigCommerceInstallError']);
+//		}
+//		return $this->renderWith(['BigCommerceInstallComplete']);
 	}
 	
 	/**
@@ -613,81 +644,10 @@ JS
 	 */	
 	public function uninstall()
 	{
-		$siteconfig = SiteConfig::current_site_congfig();
-		$siteconfig->BigCommerceApiAccessToken = $access_token;
-		$siteconfig->write();
-		return $this->redirect($this->Link());
-	}
-	
-	/**
-	 * action used to load the App content into the iframe within the BigCommerce admin app interface
-	 */
-	public function load()
-	{
-		$signed_payload = $this->getRequest()->getVar('signed_payload');
-		if (!$data = $this->verifyBcSignedRequest($signed_payload))
-		{
-			return $this->Customise(['Error' => true, 'ErrorMessage' => 'Invalid Store', 'ErrorData' => print_r([
-				'Payload' => $signed_payload,
-				'Payload Data' => $data
-			],1)]);
-		}
-		BCLog::info('Loading App', $data);
-		if (!$member = $this->validateAccess($data))
-		{
-			return $this->Customise(['HideNav' => true, 'Error' => true, 'ErrorMessage' => 'Your account has not been activated yet', 'ErrorData' => print_r([
-				'Email' => $data['user']['email']
-			],1)]);
-		}
-		Security::setCurrentUser($member);
-		return $this->redirect($this->Link());
-	}
-	
-	/**
-	 * verifies the request is a valid BigCommerce request to load the app
-	 */
-	private function verifyBcSignedRequest($signedRequest) 
-	{
-		list($encodedData, $encodedSignature) = explode('.', $signedRequest, 2);
-	
-		// decode the data
-		$signature = base64_decode($encodedSignature);
-		$jsonStr = base64_decode($encodedData);
-		$data = json_decode($jsonStr, true);
-	
-		// confirm the signature
-		$expectedSignature = hash_hmac('sha256', $jsonStr, Client::Config()->get('client_secret'), $raw = false);
-		if (!hash_equals($expectedSignature, $signature)) 
-		{
-			error_log('Bad signed request from BigCommerce!');
-			return null;
-		}
-		return $data;
-	}
-	
-	private function validateAccess($payload) 
-	{
-		$SiteConfig = SiteConfig::current_site_config();
-		if (is_string($payload))
-		{
-			$payload = json_decode($payload,1);
-		}
-		if ($SiteConfig->BigCommerceStoreHash == $payload['store_hash'])
-		{
-			$userEmail = $payload['user']['email'];
-			$bgID = $payload['user']['id'];
-			if ($member = Member::get()->Find('BigCommerceID',$bgID))
-			{
-				return $member;
-			}
-			if ($member = Member::get()->Find('Email',$userEmail))
-			{
-				$member->BigCommerceID = $bgID;
-				$member->write();
-				return $member;
-			}
-		}
-		return false;
+//		$siteconfig = SiteConfig::current_site_congfig();
+//		$siteconfig->BigCommerceApiAccessToken = $access_token;
+//		$siteconfig->write();
+//		return $this->redirect($this->Link());
 	}
 	
 	/** Inherited Methods for Managing Data **/
@@ -790,6 +750,7 @@ JS
 		$componentName = $data['ComponentName'];
 		$form->saveInto($component);
 		$component->write();
+		$record->{$componentName}()->add($component);
 		$synced = false;
 		if ($component->hasMethod('Sync'))
 		{
@@ -801,13 +762,16 @@ JS
 				}
 				$synced = true;
 			} catch (\Exception $e) {
-				$this->addAlert(json_encode($e->getResponseBody()),'warning');
 				$this->addAlert($e->getMessage(),'danger');
+				if (method_exists($e, 'getResponseBody'))
+				{
+					$this->addAlert(json_encode($e->getResponseBody()),'warning');
+				}
 				return $this->redirectBack();
 			}
 		}
 		
-		$record->{$componentName}()->add($component);
+		
 		$record->NeedsSync = true;
 		$record->write();
 		
@@ -908,17 +872,17 @@ JS
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSave','Save')
 		);
-		if ( ($record->Exists()) && ($record->CanDelete()) )
-		{
-			if ($record->BigID)
-			{
-				$actions->push(Forms\FormAction::create('doUnlink','Unlink')->addExtraClass('btn-danger ml-2'));
-			}
-			else
-			{
-				$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
-			}
-		}
+//		if ( ($record->Exists()) && ($record->CanDelete()) )
+//		{
+//			if ($record->BigID)
+//			{
+//				$actions->push(Forms\FormAction::create('doUnlink','Unlink')->addExtraClass('btn-danger ml-2'));
+//			}
+//			else
+//			{
+//				$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
+//			}
+//		}
 		
 		$validator = $record->getFrontEndRequiredFields($fields);
 		
@@ -959,7 +923,11 @@ JS
 			$this->addAlert($message);
 		} catch (\Exception $e) {
 			$this->addAlert($e->getMessage(),'danger');
-			throw $e;
+			if (method_exists($e, 'getResponseBody'))
+			{
+				$this->addAlert($e->getResponseBody(),'danger');
+			}
+//			throw $e;
 		}
 		return $this->redirectBack();
 	}

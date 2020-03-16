@@ -16,6 +16,7 @@ class BackgroundJob extends DataObject
 	private static $table_name = 'BCBackgroundJob';
 	
 	private static $db = [
+		'Name' => 'Varchar(255)',
 		'CallClass' => 'Varchar(255)',
 		'CallMethod' => 'Varchar(255)',
 		'Args' => 'Text',
@@ -34,7 +35,20 @@ class BackgroundJob extends DataObject
 		return $this->CallClass.'::'.$this->CallMethod;
 	}
 	
-	public static function CreateJob($class, $method, $args = [], $hash = null)
+	public function StatusDisplay()
+	{
+		switch($this->Status)
+		{
+			case self::STATUS_OPEN:
+				return 'Pending';
+			case  self::STATUS_RUNNING:
+				return 'Running';
+			case self::STATUS_COMPLETE:
+				return 'Last Synced: '.$this->dbObject('CompleteDate')->Nice();
+		}
+	}
+	
+	public static function CreateJob($class, $method, $args = [], $name = null, $hash = null)
 	{
 		if (!$hash)
 		{

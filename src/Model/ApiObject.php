@@ -144,11 +144,11 @@ class ApiObject extends DataExtension
 	
 	public function loadApiData($data)
 	{
-		$this->owner->invokeWithExtensions('updateLoadFromApi',$data);
+		$this->owner->invokeWithExtensions('updateLoadApiData',$data);
 		return $this->owner;
 	}
 	
-	public function updateLoadFromApi($data)
+	public function updateLoadApiData($data)
 	{
 		$this->owner->RawData = json_encode($data);
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
@@ -177,7 +177,7 @@ class ApiObject extends DataExtension
 	{
 		if ($class = $this->owner->Config()->get('entity_class'))
 		{
-			return Injector::inst()->create($class, $this->owner->ApiData());
+			return Injector::inst()->create($class, []);
 		}
 	}
 	
@@ -188,6 +188,7 @@ class ApiObject extends DataExtension
 			if (is_null($this->owner->_entity))
 			{
 				$this->owner->_entity = $this->owner->NewEntity();
+				$this->owner->_entity->loadApiData($this->owner->ApiData());
 			}
 		}
 		return $this->owner->_entity;

@@ -9,6 +9,7 @@ use IQnection\BigCommerceApp\Extensions\HasMetafields;
 use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\Control\Controller;
 use IQnection\BigCommerceApp\Archive\Archivable;
+use IQnection\BigCommerceApp\Cron\BackgroundJob;
 
 class Product extends DataObject implements ApiObjectInterface
 {
@@ -48,51 +49,72 @@ class Product extends DataObject implements ApiObjectInterface
 	{
 		$categoryIDs = array_filter($this->Categories()->Column('BigID'));
 		$data = [
-			'name' => $this->Title,
-			'sku' => $this->sku,
-			'categories' => $categoryIDs,
+//			'name' => $this->Title,
+//			'sku' => $this->sku,
+//			'categories' => $categoryIDs,
 		];
+		if ($rawApiData = $this->RawApiData())
+		{
+//			$data['name'] = $rawApiData->name;
+//			$data['sku'] = $rawApiData->sku;
+		}
 		if ($this->BigID)
 		{
 			$data['id'] = $this->BigID;
 		}
-		$this->extend('updateApiData',$data);
+		$this->invokeWithExtensions('updateApiData',$data);
 		return $data;
 	}
-	
-	public function Unlink() {}
-	
+		
 	public function loadApiData($data)
 	{
 		if ($data)
 		{
-			$this->BigID = $data->id;
-			$this->Title = $data->name;
-			if (is_array($data->categories))
+			if ($data->id)
 			{
-				$existingCategoryIDs = $this->Categories()->Column('BigID');
-				$diff1 = array_diff($existingCategoryIDs, $data->categories);
-				$diff2 = array_diff($data->categories,$existingCategoryIDs);
-				if ( (count($diff1)) || (count($diff2)) )
+				$this->BigID = $data->id;
+				$this->Title = $data->name;
+				$this->sku = $data->sku;
+				if (is_array($data->categories))
 				{
-					$remove = $this->Categories()->Exclude('BigID',$data->categories);
-					if ($remove->Count())
+					$existingCategoryIDs = $this->Categories()->Column('BigID');
+					$diff1 = array_diff($existingCategoryIDs, $data->categories);
+					$diff2 = array_diff($data->categories,$existingCategoryIDs);
+					if ( (count($diff1)) || (count($diff2)) )
 					{
-						$this->Categories()->removeMany($remove->Column('ID'));
-					}
-					$add = Category::get()->Filter('BigID',$data->categories);
-					if ($add->Count())
-					{
-						$this->Categories()->addMany($add->Column('ID'));
+						$remove = $this->Categories()->Exclude('BigID',$data->categories);
+						if ($remove->Count())
+						{
+							$this->Categories()->removeMany($remove->Column('ID'));
+						}
+						$add = Category::get()->Filter('BigID',$data->categories);
+						if ($add->Count())
+						{
+							$this->Categories()->addMany($add->Column('ID'));
+						}
 					}
 				}
 			}
 		}
 		else
 		{
-			$this->BigID = null;
+//			$this->BigID = null;
 		}
-		$this->invokeWithExtensions('updateLoadFromApi',$data);
+		$this->invokeWithExtensions('updateLoadApiData',$data);
+		return $this;
+	}
+	
+	public function Pull() 
+	{
+		return $this->SyncFromApi();
+	}
+	
+	public function SyncFromApi()
+	{
+		$Entity = $this->Entity();
+		$Entity = $Entity->getByID($this->BigID, true, ['include' => 'custom_fields']);
+		$this->invokeWithExtensions('loadApiData',$Entity);
+		$this->write();
 		return $this;
 	}
 	
@@ -118,6 +140,15 @@ class Product extends DataObject implements ApiObjectInterface
 			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$link);
 			$this->extend('updateAbsoluteLink',$link);
 			return $link;
+		}
+	}
+	
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		if ($this->NeedsSync)
+		{
+			BackgroundJob::CreateJob(static::class, 'Sync', ['ID' => $this->ID]);
 		}
 	}
 }

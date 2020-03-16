@@ -4,8 +4,6 @@ namespace IQnection\BigCommerceApp\Entities;
 
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
-use SilverStripe\ORM\Hierarchy\Hierarchy;
-use SilverStripe\ORM\DataObject;
 use IQnection\BigCommerceApp\Client;
 use SilverStripe\Core\Injector\Injector;
 
@@ -32,8 +30,13 @@ class BrandEntity extends Entity
 		$this->loadApiData($response->getData());
 		return $this;
 	}
-		
+	
 	public static function getBrands($refresh = false)
+	{
+		return self::getAll($refresh);
+	}
+	
+	public static function getAll($refresh = false)
 	{
 		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'));
 		$cachedData = self::fromCache($cacheName);

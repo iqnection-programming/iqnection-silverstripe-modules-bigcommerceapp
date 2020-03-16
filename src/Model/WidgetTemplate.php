@@ -61,22 +61,22 @@ class WidgetTemplate extends DataObject implements ApiObjectInterface
 	public function validate()
 	{
 		$result = parent::validate();
-		if (WidgetTemplate::get()->Exclude('ID',$this->ID)->Find('Title',$this->Title))
+		if ($existingRecord = WidgetTemplate::get()->Exclude('ID',$this->ID)->Find('Title',$this->Title))
 		{
-			$result->addError('This title is already used for another record');
+			$result->addError('The title "'.$this->Title.'" is already used for another record, ID: '.$existingRecord->ID);
 		}
-		if ($templatePath = $this->Config()->get('template_path'))
-		{
-			$baseThemes = SSViewer::get_themes();
-			$appTheme = Main::Config()->get('theme_name');
-			$baseThemes[] = $appTheme;
-			SSViewer::set_themes(array_unique($baseThemes));
-			$resourceLoader = Injector::inst()->get(ThemeResourceLoader::class);
-			if (!$resourceLoader->findTemplate($templatePath, [$appTheme]))
-			{
-				$result->addError('I cannot find a template with the name '.$templatePath);
-			}
-		}
+//		if ($templatePath = $this->Config()->get('template_path'))
+//		{
+//			$baseThemes = SSViewer::get_themes();
+//			$appTheme = Main::Config()->get('theme_name');
+//			$baseThemes[] = $appTheme;
+//			SSViewer::set_themes(array_unique($baseThemes));
+//			$resourceLoader = Injector::inst()->get(ThemeResourceLoader::class);
+//			if (!$resourceLoader->findTemplate($templatePath, $baseThemes))
+//			{
+//				$result->addError('I cannot find a template with the name '.$templatePath);
+//			}
+//		}
 		return $result;
 	}
 		

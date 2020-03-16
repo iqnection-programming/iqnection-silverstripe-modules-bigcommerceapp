@@ -220,6 +220,7 @@ class WidgetPlacementEntity extends Entity
 	
 	public function loadApiData($data)
 	{
+		parent::loadApiData($data);
 		$this->BigID = $data['uuid'];
 		$this->setTemplateConfig($data['template_file']);
 		return $this;

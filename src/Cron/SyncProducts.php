@@ -20,24 +20,25 @@ class SyncProducts extends Sync
 	protected $description = 'Pulls products from BigCommerce';
 	private static $segment = 'sync-bc-products';
 	
-	public function run($request)
+	public function run($request = null)
 	{
 		$this->checkCli();
 		$this->_syncAllProducts($request);
 	}
 	
-	public function _syncAllProducts($request)
+	public function _syncAllProducts($request = null)
 	{
 		$this->message('Syncing Records from BigCommerce');
 		$this->message('Retrieving Database Products');
 		$allDbProductIDs = Product::get()->Column('ID');
-		$this->message(count($allDbProductIDs).' Database Products Found');
+		$totalRemaining = count($allDbProductIDs);
+		$this->message($totalRemaining.' Database Products Found');
 		sleep(3);
 		$syncedIDs = [];
 		$updated = 0;
 		$created = 0;
 		$removed = 0;
-		$page = $request->requestVar('page') ? $request->requestVar('page') : 1;
+		$page = (($request) && ($request->requestVar('page'))) ? $request->requestVar('page') : 1;
 		$bcProducts = $this->getBcProducts($page,200);
 		$this->message(count($bcProducts).' Products Received');
 		$count = count($bcProducts);
@@ -47,6 +48,7 @@ class SyncProducts extends Sync
 			foreach($bcProducts as $bcProduct)
 			{
 				$count--;
+				$totalRemaining--;
 				$status = 'Updating';
 				if (!$product = Product::get()->Find('BigID', $bcProduct->id))
 				{
@@ -61,7 +63,7 @@ class SyncProducts extends Sync
 					$updated++;
 				}
 				$product->invokeWithExtensions('loadApiData',$bcProduct);
-				$this->message($count.' - '.$status.' Product: ['.$bcProduct->id.' | '.$bcProduct->BigID.'] '.$bcProduct->name);
+				$this->message($totalRemaining.' - '.$count.' - '.$status.' Product: ['.$bcProduct->id.' | '.$product->ID.'] '.$bcProduct->name);
 				//$product->loadApiData($bcProduct);
 				$product->write();
 				$syncedIDs[] = $product->ID;
@@ -74,7 +76,7 @@ class SyncProducts extends Sync
 		}
 		$this->message($updated+$created+$removed.' Products Synced');
 		sleep(3);
-		if (!$request->requestVar('page'))
+		if ((!$request) || (!$request->requestVar('page')))
 		{
 			// remove left over products
 			$removeProducts = Product::get()->Exclude('ID',$syncedIDs);

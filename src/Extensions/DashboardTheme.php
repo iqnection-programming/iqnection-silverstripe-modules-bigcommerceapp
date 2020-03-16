@@ -25,16 +25,14 @@ class DashboardTheme extends Extension
 				"assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
 				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
-//				"assets/vendor/select2/css/select2.css",
 				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
 				"css/app.scss"
 			],
 			'js' => [
-//				"assets/vendor/jquery/jquery-3.3.1.min.js",
+				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/libs/js/main-js.js",
-//				"assets/vendor/select2/js/select2.min.js",
 				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
 				"assets/vendor/shortable-nestable/Sortable.min.js",
 				"javascript/app.js"
@@ -48,7 +46,7 @@ class DashboardTheme extends Extension
 				"assets/vendor/datatables/css/fixedHeader.bootstrap4.css"
 			],
 			'js' => [
-//				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
+				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
 //				"assets/vendor/datatables/js/buttons.bootstrap4.min.js",
 				"assets/vendor/datatables/js/data-table.js",
 //				"https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js",
@@ -77,10 +75,21 @@ class DashboardTheme extends Extension
 		]
 	];
 	
+	public function Link($action = null)
+	{
+		return \SilverStripe\Control\Controller::join_links('/',$this->owner->Config()->get('url_segment'),$action);
+	}
+	
+	public function AbsoluteLink($action = null)
+	{
+		return preg_replace('/^http\:/','https:',\SilverStripe\Control\Director::absoluteURL($this->owner->Link($action)));
+	}
+	
 	public function onAfterInit()
 	{
 		$this->setDashboardTheme();
 		$this->loadRequirements();
+		$this->owner->getRequest()->addHeader('X-Frame-Options','*');
 	}
 	
 	public static $_includedCss = [];
@@ -185,9 +194,9 @@ class DashboardTheme extends Extension
 	public function setDashboardTheme()
 	{
 		$baseThemes = SSViewer::get_themes();
-		array_shift($baseThemes);
+		array_pop($baseThemes);
 		// Put the theme at the top of the list
-		array_unshift($baseThemes, $this->owner->Config()->get('theme_name'));
+		$baseThemes[] = $this->owner->Config()->get('theme_name');
 		SSViewer::set_themes(array_unique($baseThemes));
 		$this->owner->invokeWithExtensions('updateDashboardTheme');
 	}

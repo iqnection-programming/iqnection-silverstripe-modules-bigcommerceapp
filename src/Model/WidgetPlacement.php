@@ -76,7 +76,7 @@ class WidgetPlacement extends DataObject implements ApiObjectInterface
 		{
 			$this->BigID = null;
 		}
-		$this->invokeWithExtensions('updateLoadFromApi',$data);
+		$this->invokeWithExtensions('updateLoadApiData',$data);
 		return $this;
 	}
 	

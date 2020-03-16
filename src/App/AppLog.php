@@ -13,6 +13,7 @@ use SilverStripe\View\ArrayData;
 class AppLogs extends Main
 {
 	private static $url_segment = '_bc/logs';
+	private static $hidden = true;
 	
 	private static $allowed_actions = [
 		'view',

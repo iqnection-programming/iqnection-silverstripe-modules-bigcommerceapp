@@ -9,6 +9,7 @@ use IQnection\BigCommerceApp\Entities\WebhookEntity;
 
 class Listener extends Controller
 {
+	private static $debug = false;
 	private static $url_segment = '_hook';
 	private static $allowed_actions = [];
 	
@@ -45,7 +46,17 @@ class Listener extends Controller
 			{
 				list($className, $method) = explode('::',$call);
 				// only certain events are monitored
-				$job = BackgroundJob::CreateJob($className, $method, $body, $body->hash);
+				$job = BackgroundJob::CreateJob($className, $method, $body, null, $body->hash);
+			}
+		}
+		$allEventsScope = preg_replace('/([a-zA-Z0-9\-\_]+\/[a-zA-Z0-9\-\_]+).*/','$1',$scope).'/*';
+		if (array_key_exists($allEventsScope, $registry))
+		{
+			foreach($registry[$allEventsScope] as $call)
+			{
+				list($className, $method) = explode('::',$call);
+				// only certain events are monitored
+				$job = BackgroundJob::CreateJob($className, $method, $body, null, $body->hash);
 			}
 		}
 		return $this->getResponse()->setBody(true);
@@ -63,14 +74,18 @@ class Listener extends Controller
 	
 	protected function logHook($data, $title = null)
 	{
-		$entry = str_repeat('-',50)."\n";
-		if ($title)
+		if ($this->Config()->get('debug'))
 		{
-			$entry .= '**** '.$title." ****\n";
+			$entry = str_repeat('-',50)."\n";
+			if ($title)
+			{
+				$entry .= '**** '.$title." ****\n";
+			}
+			$entry .= 'Timestamp: '.date('c')."\n";
+			$entry .= print_r($data,1)."\n";
+			file_put_contents(BASE_PATH.'/webhook.log', $entry, FILE_APPEND);
 		}
-		$entry .= 'Timestamp: '.date('c')."\n";
-		$entry .= print_r($data,1)."\n";
-		file_put_contents(BASE_PATH.'/webhook.log', $entry, FILE_APPEND);
+		return $this;
 	}
 	
 	protected function validateHook($body)
