@@ -126,7 +126,6 @@ class BackgroundJobs extends Sync
 			{
 				$Hours = [$Hours];
 			}
-			$Frequency = '-'.preg_replace('/^\-/','',$recurringJobSpecs['frequency']);	// just makes sure we're comparing a past timestamp
 			if (BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod, 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
 			{
 //				$this->message('Job Already Pending');
@@ -136,8 +135,10 @@ class BackgroundJobs extends Sync
 			// if we're within the same hour, create the new job
 			if (in_array(date('G'), $Hours))
 			{
+				// prevent the job from running multiple times an hour
+				$hourBuffer = (24 / count($Hours)) - 1;
 				$previousRun = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod])->Sort('CompleteDate','DESC')->First();
-				if ( (!$previousRun) || (strtotime($previousRun->CompleteDate) < strtotime($Frequency)) )
+				if ( (!$previousRun) || (strtotime($previousRun->CompleteDate) < strtotime('-'.$hourBuffer.' hours')) )
 				{
 					BackgroundJob::CreateJob($CallClass, $CallMethod);
 				}

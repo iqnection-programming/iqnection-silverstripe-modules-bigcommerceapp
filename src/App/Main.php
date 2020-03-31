@@ -52,6 +52,7 @@ class Main extends Controller
 		'doDelete',
 		'doUnlink',
 		'pull',
+		'dismissnotifications',
 		'apidata' => 'ADMIN'
 	];
 	
@@ -480,6 +481,17 @@ JS
 		}
 	}
 	
+	public function dismissnotifications()
+	{
+		foreach(Security::getCurrentUser()->Notifications()->Exclude('Status',Notification::STATUS_DISMISSED) as $notification)
+		{
+			$notification->Status = Notification::STATUS_DISMISSED;
+			$notification->write();
+		}
+		$this->addAlert('All Notifications Dismissed');
+		return $this->redirectBack();
+	}
+	
 	public function updateNotification()
 	{
 		$status = $this->getRequest()->param('subAction');
@@ -849,7 +861,7 @@ JS
 				{
 					$this->_currentRecord = $managedClass::get()->byID($id);
 				}
-				elseif ($managedClass::singleton()->CanCreate())
+				elseif ( ($managedClass::singleton()->hasMethod('CanCreate')) && ($managedClass::singleton()->CanCreate()) )
 				{
 					$this->_currentRecord = $managedClass::create();
 				}

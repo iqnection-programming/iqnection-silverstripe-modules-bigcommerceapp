@@ -14,6 +14,7 @@
 		"silverstripe/framework": "^4.1",
 		"iqnection-themes/bigcommerceapp": "dev-master",
 		"moderntribe/bigcommerce-api-php-v3": "^2.0",
+		"bigcommerce/api": "^3.0",
 		"unclecheese/dropzone": "dev-master"
 	},
 	"autoload": {

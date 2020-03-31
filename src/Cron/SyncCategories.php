@@ -10,6 +10,7 @@ use IQnection\BigCommerceApp\Model\BigCommerceLog as BcLog;
 use SilverStripe\Control\Director;
 use IQnection\BigCommerceApp\Model\Category;
 use IQnection\BigCommerceApp\Model\Product;
+use IQnection\BigCommerceApp\Model\Notification;
 
 class SyncCategories extends Sync
 {

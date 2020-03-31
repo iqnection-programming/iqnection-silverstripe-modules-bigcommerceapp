@@ -38,6 +38,8 @@ class Auth extends Security
 	
 	private static $logout_url = '_bc/auth/logout';
 	
+	private static $default_user_account;
+	
 	public function Link($action = null)
 	{
 		return \SilverStripe\Control\Controller::join_links('/',$this->owner->Config()->get('url_segment'),$action);
@@ -129,6 +131,10 @@ class Auth extends Security
 				$member->BigCommerceID = $bgID;
 				$member->write();
 				return $member;
+			}
+			if ($default_username = $this->Config()->get('default_user_account'))
+			{
+				return Member::get()->Find('Email',$default_username);
 			}
 		}
 		return false;
