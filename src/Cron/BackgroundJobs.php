@@ -135,12 +135,14 @@ class BackgroundJobs extends Sync
 			// if we're within the same hour, create the new job
 			if (in_array(date('G'), $Hours))
 			{
+				$hash = md5($jobName.'-'.$CallClass.'-'.$CallMethod.'-'.date('Y-m-d').'-'.date('H'));
 				// prevent the job from running multiple times an hour
 				$hourBuffer = (24 / count($Hours)) - 1;
-				$previousRun = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod])->Sort('CompleteDate','DESC')->First();
+//				$previousRun = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod])->Sort('CompleteDate','DESC')->First();
+				$previousRun = BackgroundJob::get()->Filter(['Hash' => $hash])->Sort('CompleteDate','DESC')->First();
 				if ( (!$previousRun) || (strtotime($previousRun->CompleteDate) < strtotime('-'.$hourBuffer.' hours')) )
 				{
-					BackgroundJob::CreateJob($CallClass, $CallMethod);
+					BackgroundJob::CreateJob($CallClass, $CallMethod, [], $jobName, $hash);
 				}
 			}
 		}

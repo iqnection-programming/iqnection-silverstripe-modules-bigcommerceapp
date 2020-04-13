@@ -11,6 +11,7 @@ use SilverStripe\Control\Controller;
 use SilverStripe\SiteConfig\SiteConfig;
 use IQnection\BigCommerceApp\Archive\Archivable;
 use IQnection\BigCommerceApp\Cron\BackgroundJob;
+use SilverStripe\ORM\Hierarchy\Hierarchy;
 
 class Category extends DataObject implements ApiObjectInterface
 {
@@ -22,7 +23,8 @@ class Category extends DataObject implements ApiObjectInterface
 	
 	private static $extensions = [
 		ApiObject::class,
-		Archivable::class
+		Archivable::class,
+		Hierarchy::class
     ];
 	
 	private static $db = [
@@ -30,7 +32,6 @@ class Category extends DataObject implements ApiObjectInterface
 		'sort_order' => 'Int(11)',
 		'layout_file' => 'Varchar(255)',
 		'is_visible' => 'Boolean',
-		'ParentID' => 'Int'
 	];
 	
 	private static $many_many = [
@@ -129,6 +130,11 @@ class Category extends DataObject implements ApiObjectInterface
 		return $this;
 	}
 	
+	public function Children()
+	{
+		return Category::get()->Filter('ParentID', $this->ID);
+	}
+	
 	public function Pull() 
 	{
 		return $this->SyncFromApi();
@@ -140,11 +146,6 @@ class Category extends DataObject implements ApiObjectInterface
 		$this->invokeWithExtensions('loadApiData',$data);
 		$this->write();
 		return $this;
-	}
-
-	public function Children()
-	{
-		return self::get()->Filter('ParentID',$this->ID);
 	}
 	
 	protected $_crumbs;

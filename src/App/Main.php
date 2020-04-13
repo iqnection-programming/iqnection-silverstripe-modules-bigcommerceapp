@@ -354,7 +354,7 @@ JS
 		$notifications = ArrayList::create();
 		if ($member = Security::getCurrentUser())
 		{
-			$notifications = $member->Notifications();
+			$notifications = $member->Notifications()->Sort('ID','DESC');
 		}
 		return $this->Customise([
 			'ActiveNotifications' => PaginatedList::create($notifications->Filter('Status',Notification::STATUS_NEW), $this->getRequest())

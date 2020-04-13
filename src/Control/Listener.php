@@ -39,6 +39,11 @@ class Listener extends Controller
 			$this->logHook('Invalid Post');
 		}
 		$scope = $body->scope;
+		$id = isset($body->data->id) ? $body->data->id : null;
+		$body = [
+			'BigID' => $id,
+			'body' => $body
+		];
 		$registry = $this->Config()->get('registry');
 		if (array_key_exists($scope, $registry))
 		{

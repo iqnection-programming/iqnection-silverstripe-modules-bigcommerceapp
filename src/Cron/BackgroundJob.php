@@ -64,6 +64,7 @@ class BackgroundJob extends DataObject
 		$job->Args = json_encode($args);
 		$job->Status = self::STATUS_OPEN;
 		$job->Hash = $hash;
+		$job->Name = $name;
 		$job->write();
 		return $job;
 	}
