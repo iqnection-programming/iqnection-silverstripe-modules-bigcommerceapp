@@ -19,14 +19,30 @@ class WidgetEntity extends Entity
 	private static $client_class = \BigCommerce\Api\v3\Api\WidgetApi::class;
 	private static $cache_name = 'bigcommerce-widgets';
 		
-	protected static $_is_pushing = false;
+	public function ApiData() 
+	{
+		$data = parent::ApiData();
+//		$data['widget_configuration'] = $this->widget_configuration;
+		return $data;
+	}
+	
+	public function loadApiData($data)
+	{
+		parent::loadApiData($data);
+		if (isset($data['widget_configuration']))
+		{
+			$this->widget_configuration = $data['widget_configuration'];
+		}
+		return $this;
+	}
+	
 	public function Sync()
 	{
 		$Client = $this->ApiClient();
 		$data = $this->ApiData();
 		try {
 			$request = new WidgetRequest( $data );
-			BcLog::info('Widget Data for: '.$this->BigID, $request);
+			BcLog::info('Widget Data for: '.$data['id'], $data);
 			$id = ($data['uuid']) ? $data['uuid'] : ($data['id'] ? $data['id'] : ($data['BigID'] ? $data['BigID'] : null));
 			if ($id)
 			{
@@ -39,7 +55,7 @@ class WidgetEntity extends Entity
 				BcLog::info('Created Widget ',$widget);
 			}
 		} catch (\Exception $e) {
-			BcLog::error('Exception syncing widget', [$e->__toString(),$e->getResponseBody()]);
+			BcLog::error('Exception syncing widget', [$e->__toString(),$e->getResponseBody(),$data, $this]);
 			throw $e;
 		}
 		$this->loadApiData($response->getData());

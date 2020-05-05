@@ -56,7 +56,13 @@ class BackgroundJob extends DataObject
 		}
 		if ($existing = self::get()->Filter(['Hash' => $hash, 'Status' => ['open','running']])->First())
 		{
-			return $existing;
+			// make sure the job isn't stuck, give it a one hour buffer
+			if (strtotime($existing->LastEdited) > strtotime('-1 hour')) 
+			{
+				return $existing;
+			}
+			$existing->Status = self::STATUS_FAILED;
+			$existing->write();
 		}
 		$job = new self;
 		$job->CallClass = $class;
@@ -96,7 +102,7 @@ class BackgroundJob extends DataObject
 			}
 			
 			ob_start();
-			$result = call_user_func_array([$inst, $this->CallMethod], $args);
+			$result = call_user_func_array([$inst, $this->CallMethod], [$args]);
 			$this->Logs .= "\nOutput:\n".ob_get_contents();
 			ob_end_clean();
 			$this->Status = self::STATUS_COMPLETE;

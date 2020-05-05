@@ -11,6 +11,7 @@ use IQnection\BigCommerceApp\Client;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
+use SilverStripe\Control\Controller;
 
 class SiteConfig extends DataExtension
 {
@@ -72,6 +73,11 @@ class SiteConfig extends DataExtension
 	public function getBigCommerceUninstallCallbackUrl()
 	{
 		return Injector::inst()->get(\IQnection\BigCommerceApp\App\Install::class)->AbsoluteLink('uninstall');
+	}
+	
+	public function BigCommerceLink($action = null)
+	{
+		return Controller::join_links($this->owner->BigCommerceStoreUrl, $action);
 	}
 }
 

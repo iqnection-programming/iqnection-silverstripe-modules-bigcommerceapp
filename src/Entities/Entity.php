@@ -40,9 +40,9 @@ class Entity extends ArrayData implements \JsonSerializable
 			$returnValue = [];
 			if (count($value))
 			{
-				foreach($value as $subValue)
+				foreach($value as $key => $subValue)
 				{
-					$returnValue[] = $this->extractApiData($subValue);
+					$returnValue[$key] = $this->extractApiData($subValue);
 				}
 			}
 		}
@@ -81,13 +81,20 @@ class Entity extends ArrayData implements \JsonSerializable
 		if (!is_array($data)) { return; }
 		foreach($data as $key => $value)
 		{
-			if ( (is_object($value)) && (method_exists($value, 'get')) )
+			if (is_object($value))
 			{
-				$value = $this->buildArrayData($value, $key);
+				if  (method_exists($value, 'get'))
+				{
+					$value = $this->buildArrayData($value, $key);
+				}
+				elseif ($value instanceof \DateTime)
+				{
+					$value = $value->format('Y-m-d H:i:s');
+				}
 			}
 			elseif (is_array($value))
 			{
-				// if not an associative
+				// if is associative
 				if ( (!array_key_exists(0, $value)) || (array_key_last($value) != (count($value) - 1)) )
 				{
 					$childClass = Entity::class;
@@ -95,14 +102,24 @@ class Entity extends ArrayData implements \JsonSerializable
 					{
 						$childClass = $childEntitiesMap[$key];
 					}
-					$newValue = ArrayList::create();
-					foreach($value as $subValue)
+					$newValue = Entity::create();
+					foreach($value as $subkey => $subValue)
 					{
 						$newSubInst = Injector::inst()->create($childClass, []);
 						$newSubInst->loadApiData($subValue);
-						$newValue->push($newSubInst);
+						$newValue->setField($subkey,$newSubInst);
 					}
 					$value = $newValue;
+				}
+				else
+				{
+					foreach($value as &$subValue)
+					{
+						if (is_object($subValue))
+						{
+							$subValue = $this->buildArrayData($subValue, $key);
+						}
+					}
 				}
 			}
 			$this->setField($key, $value);

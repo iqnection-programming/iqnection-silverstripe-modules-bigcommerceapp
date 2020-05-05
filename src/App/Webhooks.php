@@ -12,7 +12,6 @@ use IQnection\BigCommerceApp\Control\Listener;
 
 class Webhooks extends Main
 {
-	private static $hidden = false;
 	private static $managed_class = WebhookEntity::class;
 	private static $url_segment = '_bc/webhooks';
 	
@@ -26,7 +25,7 @@ class Webhooks extends Main
 		'Webhooks' => [
 			'path' => '',
 			'icon' => 'lock',
-			'dev' => true
+//			'dev' => true
 		]
 	];
 	

@@ -21,8 +21,24 @@ class BackgroundJobs extends Sync
 			$this->{$task}($request);
 			return;
 		}
+		$this->killStuckJobs();
 		$this->runNextJob($request);
 		$this->checkRecurringJobs($request);
+	}
+	
+	public function killStuckJobs()
+	{
+		$runningJobs = BackgroundJob::get()->Filter('Status', BackgroundJob::STATUS_RUNNING);
+		$this->reportJob($runningJobs->Count().' Running Jobs');
+		foreach($runningJobs as $runningJob)
+		{
+			if (strtotime($runningJob->LastEdited) < strtotime('-30 minutes'))
+			{
+				$this->reportJob($runningJob->Name.' created on '.$runningJob->Created.' Killed');
+				$runningJob->Status = BackgroundJob::STATUS_FAILED;
+				$runningJob->write();
+			}
+		}
 	}
 	
 	public function logFilePath()
@@ -87,6 +103,19 @@ class BackgroundJobs extends Sync
 		}
 	}
 	
+	public function forceJobRun($request)
+	{
+		$this->reportJob('Forcing Background Job');
+		if ($id = $request->getVar('id'))
+		{
+			if ($job = BackgroundJob::get()->byID($id))
+			{
+				$this->reportJob('Running Background Job '.$job->Name);
+				$this->runJob($job);
+			}
+		}
+	}
+	
 	public function runNextJob($request)
 	{
 		$endTime = strtotime('+3 minute');
@@ -99,16 +128,7 @@ class BackgroundJobs extends Sync
 		$this->reportJob($jobs->Count().' Jobs Scheduled');
 		foreach($jobs as $job)
 		{
-			$this->reportJob('Running Job: '.$job->getTitle());
-			try {
-				$job->Run();
-			} catch (\Exception $e) {
-				$job->reportJob($e->getMessage(),'ERROR');
-				if (method_exists($e,'getResponseBody'))
-				{
-					$job->reportJob($e->getResponseBody(),'EXCEPTION');
-				}
-			}
+			$this->runJob($job);
 			if (strtotime('now') > $endTime)
 			{
 				$this->reportJob('Times up');
@@ -117,6 +137,21 @@ class BackgroundJobs extends Sync
 		}
 		$this->reportJob('Complete');
 		$this->closeStatusReport();
+	}
+	
+	protected function runJob($job)
+	{
+		$this->reportJob('Running Job: '.$job->getTitle());
+		try {
+			$job->Run();
+		} catch (\Exception $e) {
+			$job->reportJob($e->getMessage(),'ERROR');
+			if (method_exists($e,'getResponseBody'))
+			{
+				$job->reportJob($e->getResponseBody(),'EXCEPTION');
+			}
+		}
+		return $job;
 	}
 	
 	public function checkRecurringJobs($request)
@@ -129,42 +164,54 @@ class BackgroundJobs extends Sync
 			$CallClass = $recurringJobSpecs['call_class'];
 			$CallMethod = $recurringJobSpecs['call_method'];
 			$Hours = $recurringJobSpecs['hours'];
+
 //			$this->message($recurringJobSpecs, $jobName);
 			if (preg_match('/,/',$Hours))
 			{
 				$Hours = explode(',',$Hours);
 			}
+			elseif ($Hours === "*")
+			{
+				$Hours = [];
+				for($h=0;$h<24;$h++)
+				{
+					$Hours[] = $h;
+				}
+			}
 			if (!is_array($Hours))
 			{
 				$Hours = [$Hours];
 			}
-			if (BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod, 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
+			// is this the proper time to run the job?
+			if (!in_array(date('G'), $Hours))
 			{
-				$this->message('Job Already Pending');
-				break;
+				continue;
+			}
+			// is there an existing job running or open
+			if ($existing = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod, 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
+			{
+				// make sure the job isn't stuck
+				if (strtotime($existing->LastEdited) > strtotime('-1 hour'))
+				{
+					$this->message('Job Already Pending');
+					continue;
+				}
+				$existing->Status = BackgroundJob::STATUS_FAILED;
+				$existing->write();
 			}
 			// to get jobs to run when usage is low, we can set a time for when the job should be created
 			// if we're within the same hour, create the new job
-			if (in_array(date('G'), $Hours))
+			$hash = md5($jobName.'-'.$CallClass.'-'.$CallMethod.'-'.date('Y-m-d-G'));
+			// prevent the job from running multiple times an hour
+			$previousRun = BackgroundJob::get()->Find('Hash', $hash);
+			if (!$previousRun)
 			{
-				$hash = md5($jobName.'-'.$CallClass.'-'.$CallMethod.'-'.date('Y-m-d').'-'.date('H'));
-				// prevent the job from running multiple times an hour
-				$hourBuffer = (24 / count($Hours)) - 1;
-//				$previousRun = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod])->Sort('CompleteDate','DESC')->First();
-				$previousRun = BackgroundJob::get()->Filter(['Hash' => $hash])->Sort('CompleteDate','DESC')->First();
-				if ( (!$previousRun) || (strtotime($previousRun->CompleteDate) < strtotime('-'.$hourBuffer.' hours')) )
-				{
-					$this->message('Creating Job');
-					BackgroundJob::CreateJob($CallClass, $CallMethod, [], $jobName, $hash);
-				}
-				else
-				{
-					$this->message('Job has already been run for this time period');
-				}
+				$this->message('Creating Job');
+				BackgroundJob::CreateJob($CallClass, $CallMethod, [], $jobName, $hash);
 			}
 			else
 			{
-				$this->message('Not time to run this job');
+				$this->message('Job has already been run for this time period');
 			}
 		}
 	}

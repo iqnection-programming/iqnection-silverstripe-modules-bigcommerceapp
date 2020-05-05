@@ -7,6 +7,8 @@ use SilverStripe\Forms;
 use SilverStripe\Control\Director;
 use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
+use IQnection\BigCommerceApp\Entities\Entity;
+use IQnection\BigCommerceApp\Cron\BackgroundJob;
 
 class ApiObject extends DataExtension
 {
@@ -150,6 +152,10 @@ class ApiObject extends DataExtension
 	
 	public function updateLoadApiData($data)
 	{
+		if ( (is_object($data)) && (method_exists($data,'toMap')) )
+		{
+			$data = $data->toMap();
+		}
 		$this->owner->RawData = json_encode($data);
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
 		$this->owner->NeedsSync = false;
@@ -166,6 +172,12 @@ class ApiObject extends DataExtension
 		$this->owner->NeedsSync = false;
 		$this->owner->write();
 		return $Entity;
+	}
+	
+	public function QueueSync()
+	{
+		BackgroundJob::CreateJob($this->owner->getClassName(), 'Sync', ['ID' => $this->owner->ID], 'QueuedSync');
+		return $this;
 	}
 	
 	public function Pull()

@@ -18,7 +18,7 @@ class SyncCategories extends Sync
 	protected $description = 'Pulls categories from BigCommerce';
 	private static $segment = 'sync-bc-categories';
 	
-	public function run($request)
+	public function run($request = null)
 	{
 		$this->checkCli();
 		$this->_syncCategories();
@@ -78,9 +78,9 @@ class SyncCategories extends Sync
 		
 		$notification = [
 			$updated+$created+$removed.' Categories Synced',
-			$updated.' Products Updated',
-			$created.' Products Created',
-			$removed.' Products Removed'
+			$updated.' Categories Updated',
+			$created.' Categories Created',
+			$removed.' Categories Removed'
 		];
 		Notification::NotifyAll(implode("<br />", $notification));
 		$this->message($notification);

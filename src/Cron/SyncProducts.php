@@ -109,7 +109,8 @@ class SyncProducts extends Sync
 		$apiClient = $inst->ApiClient();
 		$filters = [
 			'page' => $page,
-			'limit' => $limit
+			'limit' => $limit,
+			'include' => 'custom_fields'
 		];
 		$this->message('Retrieving '.$filters['limit'].' Products on Page: '.$filters['page']);
 		$apiResponse = $apiClient->getProducts($filters);

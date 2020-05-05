@@ -60,6 +60,15 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 		return Forms\RequiredFields::create($requiredFields);
 	}
 	
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		if ($this->Widget()->Exists())
+		{
+			$this->Widget()->QueueSync();
+		}
+	}
+	
 	public function jsonSerialize()
 	{
 		$data = $this->WidgetData();

@@ -13,6 +13,8 @@ use SilverStripe\Forms;
 class DashboardTheme extends Extension
 {
 	private static $theme_name = 'bigcommerceapp';
+	private static $hidden = false;
+	private static $page_title;
 	
 	private static $theme_packages = [
 		'base',
@@ -25,17 +27,17 @@ class DashboardTheme extends Extension
 				"assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
 				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
-				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
-				"css/app.scss"
+				"assets/vendor/select2/css/select2.min.css",
+//				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
 			],
 			'js' => [
-				"assets/vendor/jquery/jquery-3.3.1.min.js",
+//				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/libs/js/main-js.js",
-				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
+				"assets/vendor/select2/js/select2.full.min.js",
+//				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
 				"assets/vendor/shortable-nestable/Sortable.min.js",
-				"javascript/app.js"
 			]
 		],
 		'datatables' => [
@@ -71,6 +73,14 @@ class DashboardTheme extends Extension
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/vendor/parsley/parsley.js",
 				"assets/libs/js/main-js.js",
+			]
+		],
+		'custom' => [
+			'css' => [
+				"css/app.scss"
+			],
+			'js' => [
+				"javascript/app.js"
 			]
 		]
 	];
@@ -181,6 +191,7 @@ class DashboardTheme extends Extension
 		{
 			$this->loadThemePackage($packageName);
 		}
+		$this->loadThemePackage('custom');
 	}
 	
 	public function loadRequirements()

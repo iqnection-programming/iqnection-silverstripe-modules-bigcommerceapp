@@ -39,9 +39,7 @@ class ProductEntity extends Entity
 			$data['weight'] = ($data['weight']) ? $data['weight'] : 0;
 			$data['price'] = ($data['price']) ? $data['price'] : 0;
 		}
-		unset($data['categories']);
 		$this->invokeWithExtensions('updateApiData', $data);
-//if ($_SERVER['REMOTE_ADDR'] == '72.94.51.229'){ print "<pre>\nFile: ".__FILE__."\nLine: ".__LINE__."\nOutput: \n"; print_r($data); print '</pre>'; die(); }
 		return $data;
 	}
 	
@@ -50,6 +48,7 @@ class ProductEntity extends Entity
 		$apiClient = $this->ApiClient();
 		$apiData = $this->ApiData();
 		$id = $apiData['id'];
+		unset($apiData['categories']);
 		if ($id)
 		{
 			$response = $apiClient->updateProduct($id, new \BigCommerce\Api\v3\Model\ProductPut($apiData));
@@ -126,7 +125,18 @@ class ProductEntity extends Entity
 			{
 				$filters['limit'] = 100;
 			}
-			$filters['include'] = 'custom_fields';
+			if ( (isset($filters['include'])) && (!is_array($filters['include'])) )
+			{
+				$filters['include'] = explode(',',$filters['include']);
+			}
+			if (!in_array('custom_fields', $filters))
+			{
+				$filters['include'] = 'custom_fields';
+			}
+			if (!in_array('categories', $filters))
+			{
+				$filters['include'] = 'categories';
+			}
 			$apiResponse = $apiClient->getProducts($filters);
 			$responseMeta = $apiResponse->getMeta();
 			while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
@@ -152,6 +162,14 @@ class ProductEntity extends Entity
 		$cachedData = self::fromCache($cacheName);
 		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
+			if ( (isset($additionalParams['include'])) && (!is_array($additionalParams['include'])) )
+			{
+				$additionalParams['include'] = explode(',',$additionalParams['include']);
+			}
+			if (!in_array('custom_fields', $additionalParams))
+			{
+				$additionalParams['include'] = 'custom_fields';
+			}
 			$cachedData = Injector::inst()->create(static::class, []);
 			$apiClient = $cachedData->ApiClient();
 			$apiResponse = $apiClient->getProductById($id, $additionalParams);

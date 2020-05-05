@@ -187,7 +187,11 @@ class Widgets extends Main
 				$this->addAlert('Widget Configuration Synced');
 			} catch (\Exception $e) {
 				$this->addAlert('There was an error syncing the widget','danger');
-				$this->addAlert(json_encode($e->getMessage()));
+				$this->addAlert($e->getMessage());
+				if (method_exists($e, 'getResponseBody'))
+				{
+					$this->addAlert(json_encode($e->getResponseBody()));
+				}
 			}
 		}
 		return $this->redirectBack();

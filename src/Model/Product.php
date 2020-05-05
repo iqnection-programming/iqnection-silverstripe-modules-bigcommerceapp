@@ -101,7 +101,39 @@ class Product extends DataObject implements ApiObjectInterface
 //			$this->BigID = null;
 		}
 		$this->invokeWithExtensions('updateLoadApiData',$data);
+		$this->write();
 		return $this;
+	}
+	
+	public function processWebhook($args)
+	{
+		$scope = $args['body']['scope'];
+		$status = [];
+		try {
+			switch($scope)
+			{
+				default:
+					$this->Pull();
+					$status[] = 'Pulled';
+					break;
+				
+				case 'store/product/deleted':
+					$this->delete();
+					$status[] = 'Deleted';
+					break;
+			}
+		} catch (\Exception $e) {
+			$status[] = 'EXCEPTION';
+			$status[] = $e->getMessage();
+			if (method_exists($e, 'getResponseBody'))
+			{
+				$status[] = $e->getResponseBody();
+			}
+			print_r($status);
+			throw $e;
+		}
+		print_r($status);
+		return $status;
 	}
 	
 	public function Pull() 
@@ -112,8 +144,8 @@ class Product extends DataObject implements ApiObjectInterface
 	public function SyncFromApi()
 	{
 		$Entity = $this->Entity();
-		$Entity = $Entity->getByID($this->BigID, true, ['include' => 'custom_fields']);
-		$this->invokeWithExtensions('loadApiData',$Entity);
+		$Entity = $Entity::getByID($this->BigID, true, ['include' => 'custom_fields']);
+		$this->loadApiData($Entity);
 		$this->write();
 		return $this;
 	}

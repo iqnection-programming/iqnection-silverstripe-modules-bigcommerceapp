@@ -78,7 +78,7 @@ class Category extends DataObject implements ApiObjectInterface
 			BackgroundJob::CreateJob(static::class, 'Pull', ['ID' => $this->ID]);
 		}
 	}
-	
+		
 	public function ApiData() 
 	{
 		$data = [
@@ -133,6 +133,38 @@ class Category extends DataObject implements ApiObjectInterface
 	public function Children()
 	{
 		return Category::get()->Filter('ParentID', $this->ID);
+	}
+	
+	public function processWebhook($args)
+	{
+		$scope = $args['body']['scope'];
+		print $scope."\n";
+		$status = [];
+		try {
+			switch($scope)
+			{
+				default:
+					$this->Pull();
+					$status[] = 'Pulled';
+					break;
+				
+				case 'store/category/deleted':
+					$this->delete();
+					$status[] = 'Deleted';
+					break;
+			}
+		} catch (\Exception $e) {
+			$status[] = 'EXCEPTION';
+			$status[] = $e->getMessage();
+			if (method_exists($e, 'getResponseBody'))
+			{
+				$status[] = $e->getResponseBody();
+			}
+			print_r($status);
+			throw $e;
+		}
+		print_r($status);
+		return $status;
 	}
 	
 	public function Pull() 

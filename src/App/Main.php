@@ -30,7 +30,6 @@ class Main extends Controller
 {
 	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
 	
-	private static $hidden = false;
 	private static $url_segment = '_bc';
 	private static $managed_class;
 	
@@ -67,13 +66,14 @@ class Main extends Controller
 		'notification//$subAction!/$ID!' => 'updateNotification',
 		'edit/$ID/relationremove/$ComponentName!/$RelatedID' => 'relationremove',
 		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation',
-		'edit/$ID/pull/' => 'pull'
+		'edit/$ID/pull' => 'pull'
 	];
 
 	private static $apps = [
 		'Main' => Main::class,
 		'Products' => Products::class,
 		'Categories' => Categories::class,
+		'File Manager' => FileManager::class,
 		'Widgets' => Widgets::class,
 		'SilverStripe' => SSAdminRedirect::class,
 		'Logs' => AppLogs::class,
@@ -96,6 +96,10 @@ class Main extends Controller
 		} catch (\Exception $e) {
 			$this->addAlert('There was an error syncing the data','danger');
 			$this->addAlert(print_r($e->getMessage(),1),'danger');
+			if (method_exists($e, 'getResponseBody'))
+			{
+				$this->addAlert(print_r($e->getResponseBody(),1),'danger');
+			}
 		}
 		return $this->redirect($this->Link('edit/'.$record->ID));
 	}
@@ -110,8 +114,10 @@ class Main extends Controller
 		}
 		elseif ($record = $this->currentRecord())
 		{
-			print "-----API Data\n";
+			print "-----Object API Data\n";
 			print_r($record->ApiData());
+			print "-----Entity API Data\n";
+			print_r($record->Entity()->ApiData());
 			print "\n\n-----Raw API Data\n";
 			print_r($record->RawApiData()->toMap());
 			print "\n\n-----Import Data\n";
@@ -227,7 +233,7 @@ JS
 		$records = $records->Limit($limit,$start);
 		
 		
-		if ($this->getRequest()->isAjax())
+		if (Director::is_ajax())
 		{
 			$ajaxData = [
 				'data' => [],
@@ -250,7 +256,7 @@ JS
 			print json_encode($ajaxData);
 			die();
 		}
-			
+
 		return $this->Customise([
 			'Categories' => $records
 		]);
@@ -290,7 +296,7 @@ JS
 		$products = $products->Limit($limit,$start);
 		
 		
-		if ($this->getRequest()->isAjax())
+		if (Director::is_ajax())
 		{
 			$ajaxData = [
 				'data' => [],
@@ -322,15 +328,16 @@ JS
 	
 	public function Title()
 	{
-		if ( ($action = $this->getAction()) && ($action != 'index') )
-		{
-			$Title = ucwords($action);
-		}
-		else
+		if (!$Title = $this->Config()->get('page_title'))
 		{
 			$nav = $this->Config()->get('nav_links', Config::UNINHERITED);
 			$Title = key($nav);
 		}
+//		if ( ($action = $this->getAction()) && ($action != 'index') )
+//		{
+//			$Title = ucwords($action);
+//		}
+
 		if ( ($currentRecord = $this->currentRecord()) && ($currentRecord->Exists()) )
 		{
 			$Title .= ' | '.$currentRecord->getTitle();

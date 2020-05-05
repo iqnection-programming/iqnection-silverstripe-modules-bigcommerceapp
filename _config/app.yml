@@ -24,3 +24,9 @@ IQnection\BigCommerceApp\Cron\BackgroundJobs:
       'call_class': 'IQnection\BigCommerceApp\Cron\BackgroundJobs'
       'call_method': 'clean'
       'hours': 2
+IQnection\BigCommerceApp\Control\Listener:
+  registry:
+    'store/category/*':
+      - 'IQnection\BigCommerceApp\Model\Category::processWebhook'
+    'store/product/*':
+      - 'IQnection\BigCommerceApp\Model\Product::processWebhook'
