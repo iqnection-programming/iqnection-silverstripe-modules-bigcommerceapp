@@ -105,9 +105,13 @@ class Entity extends ArrayData implements \JsonSerializable
 					$newValue = Entity::create();
 					foreach($value as $subkey => $subValue)
 					{
-						$newSubInst = Injector::inst()->create($childClass, []);
-						$newSubInst->loadApiData($subValue);
-						$newValue->setField($subkey,$newSubInst);
+						$newSubValue = $subValue;
+						if ( (is_array($subValue)) || (is_object($subValue)) )
+						{
+							$newSubValue = Injector::inst()->create($childClass, []);
+							$newSubValue->loadApiData($subValue);
+						}
+						$newValue->setField($subkey,$newSubValue);
 					}
 					$value = $newValue;
 				}

@@ -674,7 +674,7 @@ JS
 	{
 		if (!$record = $this->currentRecord())
 		{
-			user_error('Main Record not found');
+			user_error('Main Record ['.$_REQUEST['_ID'].'] not found with class '.$this->ManagedClass());
 		}
 		if (!$record->Exists())
 		{
@@ -721,6 +721,18 @@ JS
 
 		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
 		$fields = $relatedObject->getFrontEndFields(['Master' => $record, 'ComponentName' => $ComponentName]);
+		foreach($fields->dataFields() as $field)
+		{
+			if ($field instanceof FileAttachmentField)
+			{
+				$field->addParam('_ID',$record->ID);
+				$field->addParam('ComponentName',$ComponentName);
+				if ($relatedObject->Exists())
+				{
+					$field->addParam('RelatedID',$relatedObject->ID);
+				}
+			}
+		}
 		
 		$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
 		if ($fields->dataFieldByName('ComponentName'))
@@ -849,15 +861,21 @@ JS
 		return $this;
 	}
 	
+	public function ManagedClass()
+	{
+		if (!$managedClass = $this->getRequest()->requestVar('ClassName'))
+		{
+			$managedClass = $this->Config()->get('managed_class');
+		}
+		return $managedClass;
+	}
+	
 	protected $_currentRecord;
 	public function currentRecord()
 	{
 		if (is_null($this->_currentRecord))
 		{
-			if (!$className = $this->getRequest()->requestVar('ClassName'))
-			{
-				$managedClass = $this->Config()->get('managed_class');
-			}
+			$managedClass = $this->ManagedClass();
 			if ($managedClass)
 			{
 				if ($id = $this->getRequest()->requestVar('_ID'))

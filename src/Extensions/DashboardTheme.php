@@ -24,7 +24,7 @@ class DashboardTheme extends Extension
 		'base' => [
 			'css' => [
 				"assets/vendor/bootstrap/css/bootstrap.min.css",
-				"assets/vendor/fonts/circular-std/style.css",
+//				"assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
 				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
 				"assets/vendor/select2/css/select2.min.css",

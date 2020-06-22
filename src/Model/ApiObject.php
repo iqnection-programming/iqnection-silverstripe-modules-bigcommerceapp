@@ -9,6 +9,7 @@ use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
 use IQnection\BigCommerceApp\Entities\Entity;
 use IQnection\BigCommerceApp\Cron\BackgroundJob;
+use SilverStripe\ORM\ArrayList;
 
 class ApiObject extends DataExtension
 {
@@ -209,6 +210,13 @@ class ApiObject extends DataExtension
 	public function onBeforeDelete()
 	{
 		$this->Unlink();
+	}
+	
+	public function RelatedObjects()
+	{
+		$relations = ArrayList::create();
+		$this->owner->invokeWithExtensions('updateRelatedObjects', $relations);
+		return $relations;
 	}
 }
 

@@ -27,4 +27,9 @@ class ApiRelatedObject extends DataExtension
 		$fields = $fields->makeReadonly();
 		return $fields->forTemplate();
 	}
+	
+	public function Sortable()
+	{
+		return $this->owner->Config()->get('sortable');
+	}
 }
