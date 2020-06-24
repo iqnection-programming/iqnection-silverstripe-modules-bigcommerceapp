@@ -1,6 +1,8 @@
 # BigCommerce App Integration with SilverStripe
 ## Developed by IQnection
 
+# The theme for this module is required, but not yet available on GitHub. The theme will soon be packaged within this module
+
 Provides an interface for creating a BigCommerce App.
 
 ### Requires a developer's API Client ID and Client Secret
