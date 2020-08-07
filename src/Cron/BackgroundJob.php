@@ -103,15 +103,19 @@ class BackgroundJob extends DataObject
 			
 			ob_start();
 			$result = call_user_func_array([$inst, $this->CallMethod], [$args]);
-			$this->Logs .= "\nOutput:\n".ob_get_contents();
-			ob_end_clean();
 			$this->Status = self::STATUS_COMPLETE;
 		} catch (\Exception $e) {
 			$this->Logs .= "\n".$e->getMessage()."\n\n".$e->getTraceAsString();
 			$this->Status = self::STATUS_FAILED;
 		}
 		$this->CompleteDate = date('Y-m-d H:i:s');
+		$this->Logs .= "\nOutput:\n".ob_get_contents();
+		ob_end_clean();
 		$this->write();
+		if ((isset($e)) && ($e instanceof \Exception))
+		{
+			throw $e;
+		}
 		return $this;
 	}
 	

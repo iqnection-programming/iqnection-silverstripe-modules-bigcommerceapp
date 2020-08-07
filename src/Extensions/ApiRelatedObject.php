@@ -8,9 +8,28 @@ use SilverStripe\Forms;
 
 class ApiRelatedObject extends DataExtension
 {
+	private static $frontend_required_fields = [];
+	
 	public function DashboardDisplay()
 	{
-		user_error('Method DashboardDisplay not found in class '.get_class($this->owner),500);
+		user_error('Method DashboardDisplay not found in class '.get_class($this->owner));
+	}
+	
+	public function onBeforeWrite()
+	{
+		// remove versioning from images in HTML Editors
+		foreach($this->owner->getSchema()->fieldSpecs($this) as $fieldName => $fieldType)
+		{
+			if (in_array($fieldType,['HTMLText','HTMLVarchar']))
+			{
+				$this->owner->{$fieldName} = $this->StripImageVersions($this->owner->{$fieldName});
+			}
+		}
+	}
+	
+	public function StripImageVersions($html)
+	{
+		return preg_replace('/(img[^>]+src=[\'\"][^\'\"\?]+)\?.*?([\'\"])/','$1$2',$html);
 	}
 	
 	public function updateFrontEndFields(Forms\FieldList $fields)
@@ -28,8 +47,21 @@ class ApiRelatedObject extends DataExtension
 		return $fields->forTemplate();
 	}
 	
-	public function Sortable()
+	public function getFrontEndRequiredFields(Forms\FieldList $fields)
 	{
-		return $this->owner->Config()->get('sortable');
+		$requiredFields = [];
+		foreach($this->owner->Config()->get('frontend_required_fields') as $requiredField)
+		{
+			if ($field = $fields->dataFieldByName($requiredField))
+			{
+				$requiredFields[] = $requiredField;
+				$fields->dataFieldByName($requiredField)->addExtraClass('required');
+			}
+		}
+		$requiredFields = Forms\RequiredFields::create($requiredFields);
+		$this->owner->extend('updateFrontEndRequiredFields', $requiredFields);
+		return $requiredFields;
 	}
+	
+	public function updateFrontEndRequiredFields($requiredFields) { }
 }

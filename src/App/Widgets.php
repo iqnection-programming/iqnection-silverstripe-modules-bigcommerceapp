@@ -45,7 +45,7 @@ class Widgets extends Main
 	];
 	
 	private static $url_handlers = [
-		'edit/$ID/config' => 'widgetconfig',
+//		'edit/$ID/config' => 'widgetconfig',
 //		'edit/$ID/config/$ComponentName!/$ComponentID' => 'edititem',
 //		'edititem/$WidgetID/$ComponentName/$ComponentID' => 'edititem',
 		'deleteitem/$WidgetID/$ComponentName/$ComponentID' => 'deleteitem',
@@ -109,20 +109,24 @@ class Widgets extends Main
 	
 	public function delete()
 	{
-		if ($widget = Widget::get()->byID($this->getRequest()->param('ID')))
-		{
-			$widget->Unlink();
-			$widget->delete();
-			$this->addAlert('Widget Deleted');
-			return $this->redirectBack();
-		}
-		$bcWidgets = $this->getBCWidgets();
-		if ($bcWidget = $bcWidgets->Find('uuid',$this->getRequest()->param('ID')))
-		{
-			$widget = Widget::create();
-			$widget->BigID = $this->getRequest()->param('ID');
-			$widget->Unlink();
-			return $this->redirectBack();
+		try {
+			if ($widget = Widget::get()->byID($this->getRequest()->param('ID')))
+			{
+				$widget->Unlink();
+				$widget->delete();
+				$this->addAlert('Widget Deleted');
+				return $this->redirectBack();
+			}
+			$bcWidgets = $this->getBCWidgets();
+			if ($bcWidget = $bcWidgets->Find('uuid',$this->getRequest()->param('ID')))
+			{
+				$widget = Widget::create();
+				$widget->BigID = $this->getRequest()->param('ID');
+				$widget->Unlink();
+				return $this->redirectBack();
+			}
+		} catch (\Exception $e) {
+			$this->addAlert($e->getMessage(),'danger');
 		}
 	}
 	

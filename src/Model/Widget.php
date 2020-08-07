@@ -69,7 +69,7 @@ class Widget extends DataObject implements ApiObjectInterface
 				->setAttribute('disabled','disabled')
 			);
 		}
-		$this->extend('updateFrontEndFields', $fields);
+//		$this->extend('updateFrontEndFields', $fields);
 		return $fields;
 	}
 	
@@ -78,8 +78,8 @@ class Widget extends DataObject implements ApiObjectInterface
 		$requiredFields = parent::getFrontEndRequiredFields($fields);
 		if (!$this->Exists())
 		{
-			$fields->dataFieldByName('WidgetType')->addExtraClass('required');
-			$requiredFields->addRequiredField('WidgetType'); 
+			$fields->dataFieldByName('ClassName')->addExtraClass('required');
+			$requiredFields->addRequiredField('ClassName'); 
 		}
 		return $requiredFields;
 	}

@@ -41,7 +41,7 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 		]);
 		if ($this->Exists())
 		{
-			$fields->push( Forms\HiddenField::create('ComponentID','')->setValue($this->ID) );
+			$fields->push( Forms\HiddenField::create('RelatedID','')->setValue($this->ID) );
 		}
 		return $fields;
 	}
@@ -58,6 +58,11 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 			}
 		}
 		return Forms\RequiredFields::create($requiredFields);
+	}
+	
+	public function Sortable()
+	{
+		return (bool) $this->Sortable;
 	}
 	
 	public function onAfterWrite()

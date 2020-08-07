@@ -25,6 +25,11 @@ class ApiObject extends DataExtension
 		'Active' => true
 	];
 	
+	private static $indexes = [
+		'BigID' => true,
+		'Title' => true
+	];
+	
 	private static $readonly_fields = [
 		'BigID',
 //		'Title'
@@ -58,7 +63,6 @@ class ApiObject extends DataExtension
 		{
 			$fields->addFieldToTab('Root.RawData', \IQnection\Forms\RawDataField::create('RawData',$this->owner->RawData));
 		}
-		return $fields;
 	}
 		
 	public function updateFrontEndFields($fields)
@@ -76,25 +80,23 @@ class ApiObject extends DataExtension
 			}
 		}
 		$fields->removeByName(['RawData','BigID','Active','ID']);
-//		$fields->dataFieldByName('Title')->setAttribute('disabled','disabled');
-		if ($this->owner->BigID)
+		if (Director::isDev())
 		{
-			$fields->unshift( Forms\TextField::create('_BigID','id',$this->owner->BigID)->setAttribute('disabled','disabled') );
+			if ($this->owner->BigID)
+			{
+				$fields->unshift( Forms\TextField::create('_BigID','id',$this->owner->BigID)->setAttribute('disabled','disabled') );
+			}
+			if ($this->owner->Exists())
+			{
+				$fields->push( Forms\HiddenField::Create('_ID','')
+					->setValue($this->owner->ID) );
+			}
 		}
 		if ($this->owner->Exists())
 		{
-			$fields->push( Forms\HiddenField::Create('_ID','')
-				->setValue($this->owner->ID) );
+			$fields->unshift( Forms\LabelField::create('_LastSynced','Last Synced: '.$this->owner->dbObject('LastSynced')->Ago())
+				->addExtraClass('border-0') );
 		}
-		if ($this->owner->NeedsSync)
-		{
-			$fields->unshift( Forms\ReadonlyField::create('syncPending','')->setValue('Sync Pending') );
-		}
-		if ($this->owner->Exists())
-		{
-			$fields->unshift( Forms\ReadonlyField::create('LastSynced','')->setValue('Last Synced: '.$this->owner->dbObject('LastSynced')->Nice()) );
-		}
-		return $fields;
 	}
 	
 	public function getFrontEndRequiredFields(Forms\FieldList $fields)
@@ -207,16 +209,16 @@ class ApiObject extends DataExtension
 		return $this->owner->_entity;
 	}
 	
-	public function onBeforeDelete()
-	{
-		$this->Unlink();
-	}
-	
 	public function RelatedObjects()
 	{
 		$relations = ArrayList::create();
 		$this->owner->invokeWithExtensions('updateRelatedObjects', $relations);
 		return $relations;
+	}
+	
+	public function StripImageVersions($html)
+	{
+		return preg_replace('/(img[^>]+src=[\'\"][^\'\"\?]+)\?.*?([\'\"])/','$1$2',$html);
 	}
 }
 

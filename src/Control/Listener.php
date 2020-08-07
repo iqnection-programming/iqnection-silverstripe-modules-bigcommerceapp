@@ -39,6 +39,8 @@ class Listener extends Controller
 			$this->logHook('Invalid Post');
 		}
 		$scope = $body->scope;
+		$data = $body->data;
+		$jobHash = md5(json_encode([$scope, $data]));
 		$id = isset($body->data->id) ? $body->data->id : null;
 		$body = [
 			'BigID' => $id,
@@ -51,7 +53,7 @@ class Listener extends Controller
 			{
 				list($className, $method) = explode('::',$call);
 				// only certain events are monitored
-				$job = BackgroundJob::CreateJob($className, $method, $body, null, $body->hash);
+				$job = BackgroundJob::CreateJob($className, $method, $body, null, $jobHash);
 			}
 		}
 		$allEventsScope = preg_replace('/([a-zA-Z0-9\-\_]+\/[a-zA-Z0-9\-\_]+).*/','$1',$scope).'/*';
@@ -61,7 +63,7 @@ class Listener extends Controller
 			{
 				list($className, $method) = explode('::',$call);
 				// only certain events are monitored
-				$job = BackgroundJob::CreateJob($className, $method, $body, null, $body->hash);
+				$job = BackgroundJob::CreateJob($className, $method, $body, null, $jobHash);
 			}
 		}
 		return $this->getResponse()->setBody(true);

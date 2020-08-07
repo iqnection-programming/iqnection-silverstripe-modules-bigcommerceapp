@@ -68,25 +68,31 @@ class Auth extends Security
 	 */
 	public function load()
 	{
+		BCLog::info('App Load', $data);
 		$signed_payload = $this->getRequest()->getVar('signed_payload');
 		if (!$data = $this->verifyBcSignedRequest($signed_payload))
 		{
+			BCLog::info('Invalid Store', $data);
+			$this->addAlert('Invalid','warning');
 			return $this->Customise(['Error' => true, 'Content' => 'Invalid Store', 'ErrorData' => print_r([
 				'Payload' => $signed_payload,
 				'Payload Data' => $data
 			],1)]);
 		}
-		BCLog::info('Loading App', $data);
 		if (!$member = $this->validateAccess($data))
 		{
+			BCLog::info('Invalid Access', $data);
+			$this->addAlert('Your account has not been activated yet','warning');
 			return $this->Customise(['Content' => 'Your account has not been activated yet', 'ErrorData' => print_r([
 				'Email' => $data['user']['email']
 			],1)]);
 		}
 		$identityStore = Injector::inst()->get(IdentityStore::class);
-        $identityStore->logIn($member, true, $this->getRequest());
-		
-		return $this->redirect(Injector::inst()->get(Main::class)->AbsoluteLink());
+		$identityStore->logOut($this->getRequest());
+        	$identityStore->logIn($member, true, $this->getRequest());
+		$this->addAlert('Logged Successfully');
+		BCLog::info('Logged Successfully', $data);
+		return $this->redirect(Injector::inst()->get(Main::class)->AbsoluteLink('?sess='.$member->TempIDHash));
 	}
 	
 	/**
@@ -120,16 +126,20 @@ class Auth extends Security
 		}
 		if ($SiteConfig->BigCommerceStoreHash == $payload['store_hash'])
 		{
-			$userEmail = $payload['user']['email'];
 			$bgID = $payload['user']['id'];
 			if ($member = Member::get()->Find('BigCommerceID',$bgID))
 			{
 				return $member;
 			}
+			$userEmail = $payload['user']['email'];
 			if ($member = Member::get()->Find('Email',$userEmail))
 			{
 				$member->BigCommerceID = $bgID;
 				$member->write();
+				return $member;
+			}
+			if ($member = Security::getCurrentUser())
+			{
 				return $member;
 			}
 			if ($default_username = $this->Config()->get('default_user_account'))

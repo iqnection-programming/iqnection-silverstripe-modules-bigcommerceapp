@@ -26,18 +26,23 @@ class Product extends DataObject implements ApiObjectInterface
     ];
 	
 	private static $db = [
-		'position' => 'Int(11)',
+		'sort_order' => 'Int(11)',
 		'sku' => 'Varchar(255)',
+		'is_visible' => 'Boolean',
 	];
 	
 	private static $belongs_many_many = [
 		'Categories' => Category::class
 	];
 	
-	private static $default_sort = 'position ASC';
+	private static $default_sort = 'sort_order ASC';
+	
+	private static $indexes = [
+		'sku' => true,
+	];
 	
 	private static $remove_fields = [
-		'position',
+		'sort_order',
 	];
 	
 	private static $readonly_fields = [
@@ -75,6 +80,8 @@ class Product extends DataObject implements ApiObjectInterface
 				$this->BigID = $data->id;
 				$this->Title = $data->name;
 				$this->sku = $data->sku;
+				$this->is_visible = $data->is_visible;
+				$this->sort_order = $data->sort_order;
 				if (is_array($data->categories))
 				{
 					$existingCategoryIDs = $this->Categories()->Column('BigID');
@@ -109,6 +116,10 @@ class Product extends DataObject implements ApiObjectInterface
 	{
 		$scope = $args['body']['scope'];
 		$status = [];
+		if (!$this->BigID)
+		{
+			$this->BigID = $args['BigID'];
+		}
 		try {
 			switch($scope)
 			{

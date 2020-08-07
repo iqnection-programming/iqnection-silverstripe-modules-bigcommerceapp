@@ -33,7 +33,7 @@ class CategoryEntity extends Entity
 		{
 			$data['name'] = substr($data['name'],0,50);
 		}
-		$data['parent_id'] = $data['parent_id'];
+//		$data['parent_id'] = $data['parent_id'];
 		$this->extend('updateApiData',$data);
 		return $data;
 	}
@@ -91,17 +91,26 @@ class CategoryEntity extends Entity
 		}
 	}
 	
-	public static function getAll($refresh = false)
+	public static function getAll($refresh = false, $params = [])
 	{
-		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'));
+		$limited = (isset($params['page']) || isset($params['limit']));
+		if (!isset($params['page']))
+		{
+			$params['page'] = 1;
+		}
+		if (!isset($params['limit']))
+		{
+			$params['limit'] = 100;
+		}
+		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'),json_encode($params));
 		$cachedData = self::fromCache($cacheName);
 		if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
 		{
 			$cachedData = ArrayList::create();
 			$inst = self::singleton();
 			$apiClient = $inst->ApiClient();
-			$page = 1;
-			$apiCategoriesResponse = $apiClient->getCategories(['page' => $page, 'limit' => 100]);
+			
+			$apiCategoriesResponse = $apiClient->getCategories($params);
 			$responseMeta = $apiCategoriesResponse->getMeta();
 			while(($apiCategories = $apiCategoriesResponse->getData()) && (count($apiCategories)))
 			{
@@ -111,8 +120,12 @@ class CategoryEntity extends Entity
 					$newInst->loadApiData($bcCategory);
 					$cachedData->push($newInst);
 				}
-				$page++;
-				$apiCategoriesResponse = $apiClient->getCategories(['page' => $page, 'limit' => 100]);
+				if ($limited)
+				{
+					break;
+				}
+				$params['page']++;
+				$apiCategoriesResponse = $apiClient->getCategories($params);
 			}
 			self::toCache($cacheName, $cachedData);
 		}

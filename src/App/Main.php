@@ -15,9 +15,11 @@ use SilverStripe\View\Requirements;
 use SilverStripe\View\ThemeResourceLoader;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Convert;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Security\IdentityStore;
 use SilverStripe\ORM\PaginatedList;
 use SilverStripe\Forms;
 use IQnection\BigCommerceApp\Model\Product;
@@ -66,7 +68,8 @@ class Main extends Controller
 		'notification//$subAction!/$ID!' => 'updateNotification',
 		'edit/$ID/relationremove/$ComponentName!/$RelatedID' => 'relationremove',
 		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation',
-		'edit/$ID/pull' => 'pull'
+		'edit/$ID/pull' => 'pull',
+		'edit/$ID/sort_items' => 'sort_items'
 	];
 
 	private static $apps = [
@@ -119,7 +122,10 @@ class Main extends Controller
 			print "-----Entity API Data\n";
 			print_r($record->Entity()->ApiData());
 			print "\n\n-----Raw API Data\n";
-			print_r($record->RawApiData()->toMap());
+			if ($RawApiData = $record->RawApiData())
+			{
+				print_r($RawApiData->toMap());
+			}
 			print "\n\n-----Import Data\n";
 			print_r(json_decode($record->ImportData));
 			
@@ -136,7 +142,33 @@ class Main extends Controller
 	public function init()
 	{
 		parent::init();
-		if (!Security::getCurrentUser())
+		
+		if (!$currentUser = Security::getCurrentUser())
+		{
+			$cookieName = md5('session_auth');
+			if ( ($tempIdHash = $this->getRequest()->requestVar('sess')) && ($currentUser = Member::member_from_tempid($tempIdHash)) )
+			{
+				BCLog::info('User found from URL session query: '.$tempIdHash, $currentUser);
+				// if we got here, there is a session issue and we need to find another way to persist the session
+				// set a local cookie to force the current user on every request
+				Cookie::set($cookieName, $tempIdHash, 90, '/', $_SERVER['HTTP_HOST'], true);
+			}
+			elseif ( ($tempIdHash = Cookie::get($cookieName)) && ($currentUser = Member::member_from_tempid($tempIdHash)) )
+			{
+				BCLog::info('User found from cookie: '.$tempIdHash, $currentUser);
+			}
+			if ($currentUser)
+			{
+				BCLog::info('Setting user from temp hash', $tempIdHash);
+				Security::setCurrentUser($currentUser);
+				$this->addAlert('Low Security Authentication Used. Cookie Value: '.$tempIdHash, 'warning');
+			}
+			else
+			{
+				BCLog::info('User not logged in', $tempIdHash);
+			}
+		}
+		if (!$currentUser)
 		{
 			$publicActions = $this->Config()->get('public_actions');
 			$currentAction = $this->getRequest()->param('Action');
@@ -249,7 +281,8 @@ JS
 					'Title' => $record->Title,
 					'Breadcrumbs' => $record->Breadcrumbs(),
 					'Created' => $record->dbObject('Created')->Nice(),
-					'DropdownText' => $record->Breadcrumbs()
+					'DropdownText' => $record->Breadcrumbs(),
+					'Visible' => $record->is_visible
 				];
 			}
 			header('Content-Type: application/json');
@@ -447,30 +480,16 @@ JS
 		return $links;
 	}
 	
-	public function BootstrapForm(&$form)
+	protected function BootstrapFormFields(&$fields, $inFieldGroup = false)
 	{
-		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
-		$bc_config = \SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::get('bigcommerce');
-		$this->loadThemePackage('forms');
-		foreach($form->Fields()->saveableFields() as $field)
+		foreach($fields as $field)
 		{
-			if ($field instanceof FileAttachmentField) { continue; }
-			$field->addExtraClass('mt-2 form-control');
-			if ( ($field instanceof Forms\CheckboxField) ||
-				($field instanceof Forms\CheckboxSetField) ||
-				($field instanceof Forms\OptionSetField) )
-			{
-				$field->addExtraClass('w-auto d-inline-block');
+			if ($field instanceof FileAttachmentField) 
+			{ 
+				$field->addExtraClass('px-2');
+				continue;
 			}
-			
-			if ($field instanceof Forms\HTMLEditor\HTMLEditorField)
-			{
-				$field->setEditorConfig($bc_config);
-			}
-		}
-		foreach($form->Fields() as $field)
-		{
-			if ($field instanceof Forms\CompositeField)
+			elseif ($field instanceof Forms\CompositeField)
 			{
 				if ($field->hasClass('selectiongroup'))
 				{
@@ -480,11 +499,49 @@ JS
 				{
 					$field->addExtraClass('border p-3 mb-4');
 				}
+				$this->BootstrapFormFields($field->FieldList(), true);
+				continue;
+			}
+			$field->addExtraClass('mt-2 form-control');
+			if ( ($field instanceof Forms\CheckboxField) ||
+				($field instanceof Forms\CheckboxSetField) ||
+				($field instanceof Forms\OptionSetField) )
+			{
+				if ($inFieldGroup)
+				{
+					$field->addExtraClass('border-0');
+				}
+				else
+				{
+					if ($field->hasClass('switch-button'))
+					{
+						$field->removeExtraClass('switch-button');
+						$field->removeExtraClass('mt-2');
+						$field->setFieldHolderTemplate('SwitchButtonCheckbox');
+					}
+					elseif (!$field->hasClass('horizontal'))
+					{
+						$field->addExtraClass('w-auto d-inline-block');
+					}
+				}
+			}
+			
+			if ($field instanceof Forms\HTMLEditor\HTMLEditorField)
+			{
+				$field->setEditorConfig($bc_config);
 			}
 		}
+	}
+	
+	public function BootstrapForm(&$form)
+	{
+		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
+		$bc_config = \SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::get('bigcommerce');
+		$this->loadThemePackage('forms');
+		$this->BootstrapFormFields($form->Fields());
 		foreach($form->Actions() as $action)
 		{
-			$action->addExtraClass('btn mt-2 mr-2 btn-primary');
+			$action->addExtraClass('btn mt-2 mr-2 btn-success');
 		}
 	}
 	
@@ -523,42 +580,6 @@ JS
 	{
 		Security::setCurrentUser(null);
 		return $this->redirect($this->Link('login'));
-	}
-	
-	protected $_Alerts = [];
-	public function setAlerts($alerts)
-	{
-		$this->getRequest()->getSession()->set('alerts',$alerts);
-		return $this;
-	}
-	
-	public function addAlert($message, $status = 'success')
-	{
-		if ( (is_object($message)) || (is_array($message)) )
-		{
-			$message = print_r($message,1);
-		}
-		$this->_Alerts[] = [
-			'Message' => $message,
-			'Status' => $status
-		];
-		$this->setAlerts($this->_Alerts);
-		return $this;
-	}
-	
-	protected $_AlertsOut;
-	public function Alerts()
-	{
-		if ( (is_null($this->_AlertsOut)) && (is_array($this->getRequest()->getSession()->get('alerts'))) )
-		{
-			$this->_AlertsOut = ArrayList::create();
-			foreach($this->getRequest()->getSession()->get('alerts') as $alert)
-			{
-				$this->_AlertsOut->push(ArrayData::create($alert));
-			}
-			$this->setAlerts(false);
-		}
-		return $this->_AlertsOut;
 	}
 	
 	protected function ajax_response($data,$success = true, $errors = [], $message = null)
@@ -674,8 +695,8 @@ JS
 	{
 		if (!$record = $this->currentRecord())
 		{
-			user_error('Main Record ['.$_REQUEST['_ID'].'] not found with class '.$this->ManagedClass());
-		}
+			user_error('Main Record not found');
+		}	
 		if (!$record->Exists())
 		{
 			user_error('Main Record must be saved first');
@@ -694,6 +715,11 @@ JS
 		else
 		{
 			$object = $components->newObject();
+			if ($type = $this->getRequest()->requestVar('type'))
+			{
+				$className = base64_decode($type);
+				$object = $object->newClassInstance($className);
+			}
 		}
 		return $object;
 	}
@@ -721,6 +747,7 @@ JS
 
 		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
 		$fields = $relatedObject->getFrontEndFields(['Master' => $record, 'ComponentName' => $ComponentName]);
+		$relatedObject->extend('updateFrontEndFields', $fields);
 		foreach($fields->dataFields() as $field)
 		{
 			if ($field instanceof FileAttachmentField)
@@ -744,6 +771,12 @@ JS
 			$fields->push( Forms\HiddenField::create('ComponentName','')->setValue($ComponentName) );
 		}
 		
+		if (!$relatedObject->Exists())
+		{
+			$fields->push( Forms\HiddenField::create('type','')->setValue(base64_encode($relatedObject->getClassName())) );
+		}
+		
+		
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSaveComponent','Save')->addExtraClass('btn-success')
 		);
@@ -763,6 +796,11 @@ JS
 		);
 		$form->loadDataFrom($relatedObject);
 		$this->BootstrapForm($form);
+
+		if ($message = $form->getMessage())
+		{
+			$this->addAlert($message,'warning');
+		}
 		return $form;
 	}
 	
@@ -777,9 +815,11 @@ JS
 		if (!$record = $this->currentRecord())
 		{
 			$this->addAlert('Record not found','danger');
+			return $this->redirectBack();
 		}
 		$componentName = $data['ComponentName'];
 		$form->saveInto($component);
+		$component->invokeWithExtensions('saveFormData', $data, $form);
 		$component->write();
 		$record->{$componentName}()->add($component);
 		$synced = false;
@@ -805,9 +845,8 @@ JS
 		
 		$record->NeedsSync = true;
 		$record->write();
-		
 		$this->addAlert($component->singular_name().' Saved'.($synced ? ' And Synced':''));
-		return $this->redirect($this->Link('edit/'.$record->ID));
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($componentName)));
 	}
 	
 	public function doDeleteComponent($data,$form)
@@ -825,8 +864,9 @@ JS
 		$component->delete();
 		$record->NeedsSync = true;
 		$record->write();
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		$this->addAlert($component->singular_name().' Removed');
-		return $this->redirect($this->Link('edit/'.$record->ID));
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
 	}
 	
 	public function relationremove()
@@ -851,9 +891,12 @@ JS
 		$this->addAlert($component->singular_name().' Removed');
 		if ($this->getRequest()->isAjax())
 		{
-			
+			header('Content-type: application/json');
+			print json_encode(['success' => true]);
+			die();
 		}
-		return $this->redirect($this->Link('edit/'.$record->ID));
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
 	}
 		
 	public function relation()
@@ -861,34 +904,28 @@ JS
 		return $this;
 	}
 	
-	public function ManagedClass()
-	{
-		if (!$managedClass = $this->getRequest()->requestVar('ClassName'))
-		{
-			$managedClass = $this->Config()->get('managed_class');
-		}
-		return $managedClass;
-	}
-	
 	protected $_currentRecord;
 	public function currentRecord()
 	{
 		if (is_null($this->_currentRecord))
 		{
-			$managedClass = $this->ManagedClass();
+			if (!$managedClass = $this->getRequest()->requestVar('ClassName'))
+			{
+				$managedClass = $this->Config()->get('managed_class');
+			}
 			if ($managedClass)
 			{
-				if ($id = $this->getRequest()->requestVar('_ID'))
+				if ( ($id = $this->getRequest()->requestVar('_ID')) || ($id = $this->getRequest()->param('ID')) )
 				{
 					$this->_currentRecord = $managedClass::get()->byID($id);
 				}
-				elseif ($id = $this->getRequest()->param('ID'))
+				else
 				{
-					$this->_currentRecord = $managedClass::get()->byID($id);
-				}
-				elseif ( ($managedClass::singleton()->hasMethod('CanCreate')) && ($managedClass::singleton()->CanCreate()) )
-				{
-					$this->_currentRecord = $managedClass::create();
+					$newInst = $managedClass::singleton();
+					if ( ($newInst->hasMethod('CanCreate')) && ($newInst->CanCreate()) )
+					{
+						$this->_currentRecord = $newInst;
+					}
 				}
 			}
 		}
@@ -898,11 +935,15 @@ JS
 	public function recordForm()
 	{
 		$record = $this->currentRecord();
-		if ( ( (!$record) || (!$record->Exists()) ) && (!$record->CanCreate()) )
+		if ( (!$record) || (is_null($record)) )
+		{
+			return 'Record not found';
+		}
+		if ( (!$record->Exists()) && (!$record->CanCreate()) )
 		{
 			return 'You do not have permission to add this record';
 		}
-		if ( ($record) && ($record->Exists()) && (!$record->CanEdit()) )
+		if ( ($record->Exists()) && (!$record->CanEdit()) )
 		{
 			return 'You do not have permission to edit this record';
 		}
@@ -952,6 +993,7 @@ JS
 			return $this->redirectBack();
 		}
 		$form->saveInto($record);
+		$record->invokeWithExtensions('saveFormData', $data, $form);
 		try {
 			$record->write();
 			$message = 'Record Saved';
@@ -1018,20 +1060,16 @@ JS
 	
 	public function sort_items()
 	{
-		if ( (!$componentClass = $this->getRequest()->requestVar('component_class')) || (!$itemIDs = $this->getRequest()->requestVar('item_ids')) )
+		if ( (!$component = $this->getRequest()->requestVar('component')) || (!$itemIDs = $this->getRequest()->requestVar('item_ids')) )
 		{
 			return $this->httpError(404);
 		}
-		$componentClass = ClassInfo::class_name($componentClass);
-		if ( (!$componentClass) || (!ClassInfo::exists($componentClass)) )
-		{
-			return 'Cannot find component class';
-		}
-		$components = $componentClass::get();
+		$record = $this->currentRecord();
+		$components = $record->{$component}();
 		$count = 0;
 		$changes = [
 			'ids' => $itemIDs,
-			'componentClass' => $componentClass,
+			'component' => $component,
 			'changes' => []
 		];
 		foreach($itemIDs as $itemID)

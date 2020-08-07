@@ -33,7 +33,7 @@ class Sync extends BuildTask
 	
 	public function message($message, $title = null)
 	{
-		print ((Director::is_cli()) ? "\n" : '<pre>');
+		print ((Director::is_cli()) ? "" : '<pre>');
 		if ($title)
 		{
 			print (Director::is_cli()) ? $title : '<strong>'.$title.'</strong>';

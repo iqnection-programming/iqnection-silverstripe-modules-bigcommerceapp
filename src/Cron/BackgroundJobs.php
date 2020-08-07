@@ -14,8 +14,15 @@ class BackgroundJobs extends Sync
 	private static $log_dir = 'logs';
 	private static $log_file = 'background-jobs.log';
 	
+	private static $activate = true;
+	
 	public function run($request)
 	{
+		if (!$this->Config()->get('activate'))
+		{
+			$this->reportJob('Background Jobs Disabled');
+			return;
+		}
 		if ( ($task = $request->getVar('task')) && (method_exists($this,$task)) )
 		{
 			$this->{$task}($request);
@@ -81,6 +88,10 @@ class BackgroundJobs extends Sync
 	{
 		$this->message($message);
 		$this->openStatusReport();
+		if ( (is_array($message)) || (is_object($message)) )
+		{
+			$message = json_encode($message);
+		}
 		$this->_statusReport .= "\n".$message;
 		file_put_contents($this->logFilePath(), $this->_statusReport);
 		return $this->_statusReport;
@@ -114,6 +125,7 @@ class BackgroundJobs extends Sync
 				$this->runJob($job);
 			}
 		}
+		$this->message('Complete');
 	}
 	
 	public function runNextJob($request)
@@ -129,6 +141,7 @@ class BackgroundJobs extends Sync
 		foreach($jobs as $job)
 		{
 			$this->runJob($job);
+			sleep(3);
 			if (strtotime('now') > $endTime)
 			{
 				$this->reportJob('Times up');
@@ -145,10 +158,10 @@ class BackgroundJobs extends Sync
 		try {
 			$job->Run();
 		} catch (\Exception $e) {
-			$job->reportJob($e->getMessage(),'ERROR');
+			$this->reportJob($e->getMessage(),'ERROR');
 			if (method_exists($e,'getResponseBody'))
 			{
-				$job->reportJob($e->getResponseBody(),'EXCEPTION');
+				$this->reportJob($e->getResponseBody(),'EXCEPTION');
 			}
 		}
 		return $job;

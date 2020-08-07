@@ -64,7 +64,7 @@ class Category extends DataObject implements ApiObjectInterface
 			'layout_file'
 		]);
 		
-		$this->extend('updateFrontEndFields',$fields);
+//		$this->extend('updateFrontEndFields',$fields);
 //		$fields->unshift($fields->dataFieldByName('Title')->setAttribute('disabled','disabled'));
 		
 		return $fields;
@@ -78,19 +78,54 @@ class Category extends DataObject implements ApiObjectInterface
 			BackgroundJob::CreateJob(static::class, 'Pull', ['ID' => $this->ID]);
 		}
 	}
+	
+	/**
+	 * This is here in case categories are used in navigation and you need to know what level it's at
+	**/
+	public function getPageLevel()
+	{
+		return $this->getNavigationLevel() + $this->Level() - 1;
+	}
+	
+	protected $_navigationLevel = 2;
+	public function setNavigationLevel($level)
+	{
+		$this->_navigationLevel = $level;
+		return $this;
+	}
+	
+	public function getNavigationLevel()
+	{
+		return $this->_navigationLevel;
+	}
+	
+	protected $_level;
+	public function Level()
+	{
+		if (is_null($this->_level))
+		{
+			$this->_level = 1;
+			if ( ($parent = $this->Parent()) && ($parent->Exists()) )
+			{
+				$this->_level += $parent->Level();
+			}
+		}
+		return $this->_level;
+	}
 		
 	public function ApiData() 
 	{
-		$data = [
-//			'description' => $this->description,
-//			'sort_order' => $this->sort_order,
-			'name' => $this->Title
-		];
-		if ($parent = $this->Parent())
+		$data = [];
+		if (!$this->BigID)
 		{
-			$data['parent_id'] = $parent->BigID;
+			$data['name'] = $this->Title;
+			$data['parent_id'] = 0;
+			if ($parent = $this->Parent())
+			{
+				$data['parent_id'] = $parent->BigID;
+			}
 		}
-		if ($this->BigID)
+		else
 		{
 			$data['id'] = $this->BigID;
 		}
@@ -103,6 +138,11 @@ class Category extends DataObject implements ApiObjectInterface
 		return Category::get()->byID($this->ParentID);
 	}
 	
+	public function Siblings()
+	{
+		return Category::get()->Filter('ParentID', $this->ParentID)->Exclude('ID',$this->ID);
+	}
+	
 	public function loadApiData($data)
 	{
 		if ($data)
@@ -110,6 +150,7 @@ class Category extends DataObject implements ApiObjectInterface
 			$this->BigID = $data->id;
 			$this->Title = $data->name;
 			$this->is_visible = $data->is_visible;
+			$this->sort_order = $data->sort_order;
 			if ($data->parent_id === 0)
 			{
 				$this->ParentID = 0;
@@ -140,6 +181,10 @@ class Category extends DataObject implements ApiObjectInterface
 		$scope = $args['body']['scope'];
 		print $scope."\n";
 		$status = [];
+		if (!$this->BigID)
+		{
+			$this->BigID = $args['BigID'];
+		}
 		try {
 			switch($scope)
 			{

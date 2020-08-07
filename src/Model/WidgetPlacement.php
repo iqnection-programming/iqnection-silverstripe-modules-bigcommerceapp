@@ -98,6 +98,11 @@ class WidgetPlacement extends DataObject implements ApiObjectInterface
 		}
 		return $this->_placementResource;
 	}
+	
+	public function onBeforeDelete()
+	{
+		$this->Unlink();
+	}
 }
 
 

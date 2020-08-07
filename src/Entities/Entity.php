@@ -115,22 +115,6 @@ class Entity extends ArrayData implements \JsonSerializable
 					}
 					$value = $newValue;
 				}
-				elseif ( ($object = current($value)) && (is_object($object)) )
-				{
-					$childClass = Entity::class;
-					if (array_key_exists($key, $childEntitiesMap))
-					{
-						$childClass = $childEntitiesMap[$key];
-					}
-					$newValue = ArrayList::create();
-					foreach($value as $subValue)
-					{
-						$newSubInst = Injector::inst()->create($childClass, []);
-						$newSubInst->loadApiData($subValue);
-						$newValue->push($newSubInst);
-					}
-					$value = $newValue;
-				}
 				else
 				{
 					foreach($value as &$subValue)

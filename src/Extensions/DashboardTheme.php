@@ -8,6 +8,8 @@ use SilverStripe\View\Requirements;
 use SilverStripe\View\ThemeResourceLoader;
 use UncleCheese\Dropzone\FileAttachmentField;
 use SilverStripe\Forms;
+use SilverStripe\View\ArrayData;
+use SilverStripe\ORM\ArrayList;
 
 
 class DashboardTheme extends Extension
@@ -218,5 +220,41 @@ class DashboardTheme extends Extension
 //		$baseThemes[] = $this->owner->Config()->get('theme_name');
 		SSViewer::set_themes(array_unique($newThemeStack));
 		$this->owner->invokeWithExtensions('updateDashboardTheme');
+	}
+	
+	protected $_Alerts = [];
+	public function setAlerts($alerts)
+	{
+		$this->owner->getRequest()->getSession()->set('alerts',$alerts);
+		return $this;
+	}
+	
+	public function addAlert($message, $status = 'success')
+	{
+		if ( (is_object($message)) || (is_array($message)) )
+		{
+			$message = print_r($message,1);
+		}
+		$this->_Alerts[] = [
+			'Message' => $message,
+			'Status' => $status
+		];
+		$this->owner->setAlerts($this->_Alerts);
+		return $this;
+	}
+	
+	protected $_AlertsOut;
+	public function Alerts()
+	{
+		if ( (is_null($this->_AlertsOut)) && (is_array($this->owner->getRequest()->getSession()->get('alerts'))) )
+		{
+			$this->_AlertsOut = ArrayList::create();
+			foreach($this->owner->getRequest()->getSession()->get('alerts') as $alert)
+			{
+				$this->_AlertsOut->push(ArrayData::create($alert));
+			}
+			$this->owner->setAlerts(false);
+		}
+		return $this->_AlertsOut;
 	}
 }

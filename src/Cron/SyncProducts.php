@@ -64,8 +64,7 @@ class SyncProducts extends Sync
 					$updated++;
 				}
 				$product->invokeWithExtensions('loadApiData',$bcProduct);
-				$this->message($totalRemaining.' - '.$count.' - '.$status.' Product: ['.$bcProduct->id.' | '.$product->ID.'] '.$bcProduct->name);
-				//$product->loadApiData($bcProduct);
+				$this->message($totalRemaining.' - '.$count.' - '.$status.' Product: [BigID:'.$bcProduct->id.'|DBID:'.$product->ID.'] '.$bcProduct->name);
 				$product->write();
 				$syncedIDs[] = $product->ID;
 			}

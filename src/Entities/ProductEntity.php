@@ -33,7 +33,7 @@ class ProductEntity extends Entity
 		{
 			$data['id'] = $data['BigID'];
 		}
-		else
+		if (!isset($data['id']))
 		{
 			$data['type'] = 'physical';
 			$data['weight'] = ($data['weight']) ? $data['weight'] : 0;
