@@ -207,17 +207,12 @@ class DashboardTheme extends Extension
 	public function setDashboardTheme()
 	{
 		$baseThemes = SSViewer::get_themes();
-//		array_unshift($baseThemes, $this->owner->Config()->get('theme_name'));
+
 		$newThemeStack = [
 			$this->owner->Config()->get('theme_name'),
 			'$public',
 			'$default'
 		];
-//		$additionalThemes = array_diff($baseThemes, $newThemeStack);
-//		$newThemeStack = array_merge($newThemeStack,$additionalThemes);
-//		array_pop($baseThemes);
-		// Put the theme at the top of the list
-//		$baseThemes[] = $this->owner->Config()->get('theme_name');
 		SSViewer::set_themes(array_unique($newThemeStack));
 		$this->owner->invokeWithExtensions('updateDashboardTheme');
 	}

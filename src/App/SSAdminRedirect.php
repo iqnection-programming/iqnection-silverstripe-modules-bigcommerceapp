@@ -1,5 +1,6 @@
 <?php
 
+/*
 namespace IQnection\BigCommerceApp\App;
 
 use League\Flysystem\Filesystem;
@@ -29,6 +30,6 @@ class SSAdminRedirect extends Main
 		return $this->redirect('/admin');
 	}
 }
-
+*/
 
 

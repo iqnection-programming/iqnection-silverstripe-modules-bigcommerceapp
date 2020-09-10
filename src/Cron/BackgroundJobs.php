@@ -201,16 +201,20 @@ class BackgroundJobs extends Sync
 				continue;
 			}
 			// is there an existing job running or open
-			if ($existing = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod, 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
+			$existing = BackgroundJob::get()->Filter(['Name' => $jobName, 'CallClass' => $CallClass, 'CallMethod' => $CallMethod, 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]]);
+			if ($existing->Count())
 			{
-				// make sure the job isn't stuck
-				if (strtotime($existing->LastEdited) > strtotime('-1 hour'))
+				foreach($existing as $existingJob)
 				{
-					$this->message('Job Already Pending');
-					continue;
+					// make sure the job isn't stuck
+					if (strtotime($existingJob->LastEdited) > strtotime('-1 hour'))
+					{
+						$this->message('Job Already Pending');
+						continue;
+					}
+					$existingJob->Status = BackgroundJob::STATUS_FAILED;
+					$existingJob->write();
 				}
-				$existing->Status = BackgroundJob::STATUS_FAILED;
-				$existing->write();
 			}
 			// to get jobs to run when usage is low, we can set a time for when the job should be created
 			// if we're within the same hour, create the new job

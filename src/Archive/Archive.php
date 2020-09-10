@@ -35,7 +35,7 @@ class Archive extends DataObject
 		{
 			if ($inst = $archive->Restore())
 			{
-				$archive->delete();
+//				$archive->delete();
 			}
 		}
 		return $inst;

@@ -21,10 +21,10 @@ class SyncCategories extends Sync
 	public function run($request = null)
 	{
 		$this->checkCli();
-		$this->_syncCategories();
+		$this->_syncCategories($request);
 	}
 	
-	public function _syncCategories()
+	public function _syncCategories($request)
 	{
 		$this->message('Syncing Records from BigCommerce');
 		$bcCategoryEntity = Category::singleton()->Entity();
@@ -37,8 +37,12 @@ class SyncCategories extends Sync
 		$updated = 0;
 		$created = 0;
 		$removed = 0;
+		if (!$page = $request->getVar('page'))
+		{
+			$page = 1;
+		}
 		$count = count($allDbCategoryIDs);
-		$params = ['page' => 1, 'limit' => 100];
+		$params = ['page' => $page, 'limit' => 100];
 		$this->message('Retrieving BigCommerce Categories | Page: '.$params['page']);
 		$bcCategories = $bcCategoryEntity::getAll(true,$params);
 		while($bcCategories->Count())
@@ -58,7 +62,6 @@ class SyncCategories extends Sync
 				{
 					foreach($foundCategories as $foundCategory)
 					{
-						$updated++;
 						if ($category)
 						{
 							$count--;
@@ -103,10 +106,16 @@ class SyncCategories extends Sync
 					}
 				}
 				$this->message($count.' - '.$status.' Category: [BigID:'.$bcCategory->id.'|ID:'.$category->ID.'] '.$bcCategory->name);
+				$lastEdited = $category->LastEdited;
 				$category->invokeWithExtensions('loadApiData',$bcCategory);
+				$updated++;
 				$category->write();
 				$syncedIDs[] = $category->ID;
 				$currentItCount--;
+				if ($category->LastEdited == $lastEdited)
+				{
+					$this->message('No changes');
+				}
 				
 			}
 			$params['page']++;
@@ -115,17 +124,20 @@ class SyncCategories extends Sync
 			$this->message('Page '.$params['page'].' Categories Found: '.$bcCategories->Count());
 			sleep(1);
 		}
-		sleep(2);
-		// remove left over categories
-		$removeCategories = Category::get()->Exclude('ID',$syncedIDs);
-		$this->message($removeCategories->Count().' Categories to remove');
-		$count = $removeCategories->Count();
-		foreach($removeCategories as $category)
+		if (!$request->getVar('page'))
 		{
-			$count--;
-			$this->message($count.' - Removing: [BigID:'.$category->BigID.'|ID:'.$category->ID.']'.$category->Title);
-			$category->delete();
-			$removed++;
+			sleep(2);
+			// remove left over categories
+			$removeCategories = Category::get()->Exclude('ID',$syncedIDs);
+			$this->message($removeCategories->Count().' Categories to remove');
+			$count = $removeCategories->Count();
+			foreach($removeCategories as $category)
+			{
+				$count--;
+				$this->message($count.' - Removing: [BigID:'.$category->BigID.'|ID:'.$category->ID.']'.$category->Title);
+				$category->delete();
+				$removed++;
+			}
 		}
 		
 		$notification = [

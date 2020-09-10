@@ -5,6 +5,8 @@ namespace IQnection\BigCommerceApp\Extensions;
 
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\Forms;
+use SilverStripe\ORM\ArrayList;
+use SilverStripe\View\ArrayData;
 
 class ApiRelatedObject extends DataExtension
 {
@@ -30,6 +32,13 @@ class ApiRelatedObject extends DataExtension
 	public function StripImageVersions($html)
 	{
 		return preg_replace('/(img[^>]+src=[\'\"][^\'\"\?]+)\?.*?([\'\"])/','$1$2',$html);
+	}
+	
+	public function RelatedObjects()
+	{
+		$relations = ArrayList::create();
+		$this->owner->invokeWithExtensions('updateRelatedObjects', $relations);
+		return $relations;
 	}
 	
 	public function updateFrontEndFields(Forms\FieldList $fields)

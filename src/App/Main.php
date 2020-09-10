@@ -27,6 +27,7 @@ use IQnection\BigCommerceApp\Model\Category;
 use UncleCheese\Dropzone\FileAttachmentField;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Cookie;
+use SilverStripe\Control\HTTPResponse;
 
 class Main extends Controller
 {
@@ -34,6 +35,7 @@ class Main extends Controller
 	
 	private static $url_segment = '_bc';
 	private static $managed_class;
+	private static $page_title = 'Dashboard';
 	
 	private static $extensions = [
 		\IQnection\BigCommerceApp\Extensions\DashboardTheme::class
@@ -45,8 +47,11 @@ class Main extends Controller
 		'search_api',
 		'recordForm',
 		'relation',
+		'subrelation',
 		'relatedObjectForm',
+		'subRelatedObjectForm',
 		'relationremove',
+		'subrelationremove',
 		'edit',
 		'DashboardLoginForm',
 		'sort_items',
@@ -66,10 +71,13 @@ class Main extends Controller
 	
 	private static $url_handlers = [
 		'notification//$subAction!/$ID!' => 'updateNotification',
+		'edit/$ID/relation/$ComponentName!/$RelatedID!/subrelation/$SubcomponentName!/$SubrelatedID' => 'subrelation',
+		'edit/$ID/relation/$ComponentName!/$RelatedID!/subrelationremove/$SubcomponentName!/$SubrelatedID' => 'subrelationremove',
 		'edit/$ID/relationremove/$ComponentName!/$RelatedID' => 'relationremove',
 		'edit/$ID/relation/$ComponentName!/$RelatedID' => 'relation',
 		'edit/$ID/pull' => 'pull',
-		'edit/$ID/sort_items' => 'sort_items'
+		'edit/$ID/sort_items' => 'sort_items',
+		'sort_items' => 'sort_items'
 	];
 
 	private static $apps = [
@@ -78,7 +86,7 @@ class Main extends Controller
 		'Categories' => Categories::class,
 		'File Manager' => FileManager::class,
 		'Widgets' => Widgets::class,
-		'SilverStripe' => SSAdminRedirect::class,
+//		'SilverStripe' => SSAdminRedirect::class,
 		'Logs' => AppLogs::class,
 		'Webhooks' => Webhooks::class
 	];
@@ -142,7 +150,6 @@ class Main extends Controller
 	public function init()
 	{
 		parent::init();
-		
 		if (!$currentUser = Security::getCurrentUser())
 		{
 			$cookieName = md5('session_auth');
@@ -200,7 +207,8 @@ $('[data-editor="tinyMCE"]').each(function(){
 	tinymce.init(config);
 });
 JS
-		);		
+		);	
+	
 	}
 	
 	/**
@@ -724,6 +732,39 @@ JS
 		return $object;
 	}
 	
+	public function subRelatedObject()
+	{
+		if (!$relatedObject = $this->relatedObject())
+		{
+			user_error('Related Record not found');
+		}	
+		if (!$relatedObject->Exists())
+		{
+			user_error('Related Record must be saved first');
+		}
+		$SubcomponentName = $this->getRequest()->requestVar('SubcomponentName') ? $this->getRequest()->requestVar('SubcomponentName') : $this->getRequest()->param('SubcomponentName');
+		if ( (!$SubcomponentName) || (!$subcomponentClass = $relatedObject->getRelationClass($SubcomponentName)) )
+		{
+			return false;
+		}
+		$subcomponents = $relatedObject->{$SubcomponentName}();
+		$objectID = $this->getRequest()->requestVar('SubrelatedID') ? $this->getRequest()->requestVar('SubrelatedID') : $this->getRequest()->param('SubrelatedID');
+		if ($objectID)
+		{
+			$object = $subcomponents->byID($objectID);
+		}
+		else
+		{
+			$object = $subcomponents->newObject();
+			if ($type = $this->getRequest()->requestVar('type'))
+			{
+				$className = base64_decode($type);
+				$object = $object->newClassInstance($className);
+			}
+		}
+		return $object;
+	}
+	
 	public function relatedObjectForm()
 	{
 		$relatedObject = $this->relatedObject();
@@ -778,7 +819,8 @@ JS
 		
 		
 		$actions = Forms\FieldList::create(
-			Forms\FormAction::create('doSaveComponent','Save')->addExtraClass('btn-success')
+			Forms\FormAction::create('doSaveComponent','Save')->addExtraClass('btn-success'),
+			Forms\FormAction::create('doSaveComponent_andReturn','Save and Exit')->addExtraClass('btn-success')
 		);
 		if ( ($relatedObject->Exists()) && ($relatedObject->CanDelete()) )
 		{
@@ -804,7 +846,114 @@ JS
 		return $form;
 	}
 	
-	public function doSaveComponent($data, $form)
+	public function subRelatedObjectForm()
+	{
+		$record = $this->currentRecord();
+		$relatedObject = $this->relatedObject();
+		if ( ( (!$record) || (!$record->Exists()) ) && (!$record->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($record) && ($record->Exists()) && (!$record->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+		if ( ( (is_object($relatedObject)) && (!$relatedObject->Exists()) ) && (!$relatedObject->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($relatedObject) && ($relatedObject->Exists()) && (!$relatedObject->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+		$subrelatedObject = $this->subRelatedObject();
+		if ( ( (is_object($subrelatedObject)) && (!$subrelatedObject->Exists()) ) && (!$subrelatedObject->CanCreate()) )
+		{
+			return 'You do not have permission to add this record';
+		}
+		if ( ($subrelatedObject) && ($subrelatedObject->Exists()) && (!$subrelatedObject->CanEdit()) )
+		{
+			return 'You do not have permission to edit this record';
+		}
+
+		$ComponentName = $this->getRequest()->param('ComponentName') ? $this->getRequest()->param('ComponentName') : $this->getRequest()->requestVar('ComponentName');
+		$SubcomponentName = $this->getRequest()->param('SubcomponentName') ? $this->getRequest()->param('SubcomponentName') : $this->getRequest()->requestVar('SubcomponentName');
+		$fields = $subrelatedObject->getFrontEndFields(['Master' => $relatedObject, 'ComponentName' => $SubcomponentName]);
+		$subrelatedObject->extend('updateFrontEndFields', $fields);
+		foreach($fields->dataFields() as $field)
+		{
+			if ($field instanceof FileAttachmentField)
+			{
+				$field->addParam('_ID',$relatedObject->ID);
+				$field->addParam('_ParentID',$relatedObject->ID);
+				$field->addParam('ComponentName',$ComponentName);
+				$field->addParam('SubcomponentName',$SubcomponentName);
+				$field->addParam('RelatedID',$relatedObject->ID);
+				
+				if ($subrelatedObject->Exists())
+				{
+					$field->addParam('SubrelatedID',$subrelatedObject->ID);
+				}
+			}
+		}
+		$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
+		$fields->push( Forms\HiddenField::create('RelatedID','')->setValue($relatedObject->ID) );
+		if ($subrelatedObject->Exists())
+		{
+			$fields->push( Forms\HiddenField::create('SubrelatedID','')->setValue($subrelatedObject->ID) );
+		}
+		if ($fields->dataFieldByName('ComponentName'))
+		{
+			$fields->dataFieldByName('ComponentName')->setValue($ComponentName);
+		}
+		else
+		{
+			$fields->push( Forms\HiddenField::create('ComponentName','')->setValue($ComponentName) );
+		}
+		if ($fields->dataFieldByName('SubcomponentName'))
+		{
+			$fields->dataFieldByName('SubcomponentName')->setValue($SubcomponentName);
+		}
+		else
+		{
+			$fields->push( Forms\HiddenField::create('SubcomponentName','')->setValue($SubcomponentName) );
+		}
+		
+		if (!$subrelatedObject->Exists())
+		{
+			$fields->push( Forms\HiddenField::create('type','')->setValue(base64_encode($subrelatedObject->getClassName())) );
+		}
+		
+		
+		$actions = Forms\FieldList::create(
+			Forms\FormAction::create('doSaveSubcomponent','Save')->addExtraClass('btn-success')
+		);
+		if ( ($subrelatedObject->Exists()) && ($subrelatedObject->CanDelete()) )
+		{
+			$actions->push(Forms\FormAction::create('doDeleteSubcomponent','Delete')->addExtraClass('btn-outline-danger ml-2'));
+		}
+		
+		$validator = ($subrelatedObject->hasMethod('getFrontEndRequiredFields')) ? $subrelatedObject->getFrontEndRequiredFields($fields) : null;
+		
+		$form = Forms\Form::create(
+			$this,
+			'subRelatedObjectForm',
+			$fields,
+			$actions,
+			$validator
+		);
+		$form->loadDataFrom($subrelatedObject);
+		$this->BootstrapForm($form);
+
+		if ($message = $form->getMessage())
+		{
+			$this->addAlert($message,'warning');
+		}
+		return $form;
+	}
+	
+	
+	protected function _saveComponent($data, $form)
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 		if (!$component = $this->relatedObject())
@@ -818,6 +967,7 @@ JS
 			return $this->redirectBack();
 		}
 		$componentName = $data['ComponentName'];
+		$isNew = !$record->Exists();
 		$form->saveInto($component);
 		$component->invokeWithExtensions('saveFormData', $data, $form);
 		$component->write();
@@ -846,7 +996,60 @@ JS
 		$record->NeedsSync = true;
 		$record->write();
 		$this->addAlert($component->singular_name().' Saved'.($synced ? ' And Synced':''));
-		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($componentName)));
+		return [
+			'Record' => $record,
+			'ComponentName' => $componentName,
+			'Component' => $component
+		];
+	}
+	
+	public function doSaveComponent_andReturn($data, $form)
+	{
+		$result = $this->_saveComponent($data, $form);
+		if ($result instanceof HTTPResponse)
+		{
+			return $result;
+		}
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$result['Record']->ID,'#'.Convert::raw2url($result['ComponentName'])));
+	}
+	
+	public function doSaveComponent($data, $form)
+	{
+		$result = $this->_saveComponent($data, $form);
+		if ($result instanceof HTTPResponse)
+		{
+			return $result;
+		}
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$result['Record']->ID,'relation',$result['ComponentName'],$result['Component']->ID));
+	}
+	
+	public function doSaveSubcomponent($data, $form)
+	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+			return $this->redirectBack();
+		}
+		if (!$component = $this->relatedObject())
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if (!$subcomponent = $this->subRelatedObject())
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		$componentName = $data['ComponentName'];
+		$SubcomponentName = $data['SubcomponentName'];
+		$form->saveInto($subcomponent);
+		$subcomponent->invokeWithExtensions('saveFormData', $data, $form);
+		$subcomponent->write();
+		$component->{$SubcomponentName}()->add($subcomponent);
+
+		$this->addAlert($subcomponent->singular_name().' Saved');
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'relation',$componentName,$component->ID,'#'.Convert::raw2url($SubcomponentName)));
 	}
 	
 	public function doDeleteComponent($data,$form)
@@ -867,6 +1070,30 @@ JS
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		$this->addAlert($component->singular_name().' Removed');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
+	}
+	
+	public function doDeleteSubcomponent($data,$form)
+	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+		}
+		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if ( (!$subcomponent = $this->subRelatedObject()) || (!$subcomponent->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		$subcomponent->delete();
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
+		$SubcomponentName = $this->getRequest()->requestVar('SubcomponentName') ? $this->getRequest()->requestVar('SubcomponentName') : $this->getRequest()->param('SubcomponentName');
+		$this->addAlert($SubcomponentName->singular_name().' Removed');
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,$ComponentName,$component->ID,'#'.Convert::raw2url($SubcomponentName)));
 	}
 	
 	public function relationremove()
@@ -898,10 +1125,57 @@ JS
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
 	}
+	
+	public function subrelationremove()
+	{
+		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
+		if (!$record = $this->currentRecord())
+		{
+			$this->addAlert('Record not found','danger');
+		}
+		if ( (!$component = $this->relatedObject()) || (!$component->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		if ( (!$subcomponent = $this->subRelatedObject()) || (!$subcomponent->Exists()) )
+		{
+			$this->addAlert('Related Component not Found','danger');
+			return $this->redirectBack();
+		}
+		try {
+			$subcomponent->delete();
+		} catch (\Exception $e) {
+			throw $e;
+		}
+		$this->addAlert($subcomponent->singular_name().' Removed');
+		if ($this->getRequest()->isAjax())
+		{
+			header('Content-type: application/json');
+			print json_encode(['success' => true]);
+			die();
+		}
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
+		$SubcomponentName = $this->getRequest()->requestVar('SubcomponentName') ? $this->getRequest()->requestVar('SubcomponentName') : $this->getRequest()->param('SubcomponentName');
+		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,$ComponentName,$component->ID,'#'.Convert::raw2url($ComponentName)));
+	}
 		
 	public function relation()
 	{
-		return $this;
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
+		return $this->Customise([
+			'ComponentName' => $ComponentName,
+		]);
+	}
+	
+	public function subrelation()
+	{
+		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
+		$SubcomponentName = $this->getRequest()->requestVar('SubcomponentName') ? $this->getRequest()->requestVar('SubcomponentName') : $this->getRequest()->param('SubcomponentName');
+		return $this->Customise([
+			'ComponentName' => $ComponentName,
+			'SubcomponentName' => $SubcomponentName
+		]);
 	}
 	
 	protected $_currentRecord;
@@ -949,6 +1223,10 @@ JS
 		}
 
 		$fields = $record->getFrontEndFields();
+		if ($record->Exists())
+		{
+			$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
+		}
 		
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSave','Save')
@@ -1060,12 +1338,21 @@ JS
 	
 	public function sort_items()
 	{
-		if ( (!$component = $this->getRequest()->requestVar('component')) || (!$itemIDs = $this->getRequest()->requestVar('item_ids')) )
+		$component = $this->getRequest()->requestVar('ComponentName');
+		if (!$sortComponentName = $this->getRequest()->requestVar('SubcomponentName'))
+		{
+			$sortComponentName = $component;
+		}
+		if ( (!$sortComponentName) || (!$itemIDs = $this->getRequest()->requestVar('item_ids')) )
 		{
 			return $this->httpError(404);
 		}
 		$record = $this->currentRecord();
-		$components = $record->{$component}();
+		if ( ($relatedObject = $this->relatedObject()) && ($relatedObject->Exists()) )
+		{
+			$record = $relatedObject;
+		}
+		$components = $record->{$sortComponentName}();
 		$count = 0;
 		$changes = [
 			'ids' => $itemIDs,
