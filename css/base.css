@@ -1,0 +1,48 @@
+.fill-white {
+  fill: #FFFFFF; }
+
+.fill-black {
+  fill: #000000; }
+
+.fill-red {
+  fill: #e30000; }
+
+.bg-black {
+  background-color: #000000; }
+
+.bg-red {
+  background-color: #e30000; }
+
+.bg-white {
+  background-color: #FFFFFF; }
+
+/*=====================================
+uses:
+.element {
+	@include prefixer(transform, scale(1.5), ms webkit spec);
+}
+=======================================*/
+/*=====================================
+uses:
+.element {
+	@include transform(scale(1.5));
+}
+=======================================*/
+/*=====================================
+uses:
+.element {
+	@include transition(all 300ms ease);
+}
+=======================================*/
+/*=====================================
+uses:
+.element {
+	font-size:em(20px);
+}
+=======================================*/
+/*=====================================
+uses:
+.element {
+	line-height:lh(20px,24px);
+}
+=======================================*/

@@ -20,5 +20,12 @@
 		"psr-4": {
 			"IQnection\\BigCommerceApp\\": "app/src/"
 		}
+	},
+	"extra": {
+		"expose": [
+			"css",
+			"assets",
+			"javascript"
+		]
 	}
 }

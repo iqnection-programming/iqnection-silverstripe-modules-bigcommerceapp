@@ -31,6 +31,8 @@ class Install extends Controller
 	private static $url_segment = '_bc/install';
 	private static $install_post_back_url = 'https://login.bigcommerce.com/oauth2/token';
 	
+	private static $frame_options = false;
+	
 	private static $extensions = [
 		\IQnection\BigCommerceApp\Extensions\DashboardTheme::class
 	];
@@ -62,8 +64,7 @@ class Install extends Controller
 		{
 			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
 			Once this is ready, come back and initiate the install process again.';
-			return Security::permissionFailure($this, $message);
-			return $this->Customise(['Content' => $message])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
+			return Auth::permissionFailure($this, $message);
 		}
 		$siteconfig = SiteConfig::current_site_config();
 		$code = $this->getRequest()->getVar('code');
@@ -80,6 +81,7 @@ class Install extends Controller
 			'redirect_uri' => $siteconfig->getBigCommerceAuthCallbackUrl(),
 			'context' => $context
 		];
+
 		BCLog::info('Installing Postback', $postBack);
 		$response = $client->request('POST', $this->Config()->get('install_post_back_url'), [
 			'headers' => [
@@ -99,6 +101,7 @@ class Install extends Controller
 			$siteconfig->BigCommerceApiAccessToken = $access_token;
 			$siteconfig->BigCommerceApiScope = $responseData->scope;
 			$siteconfig->write();
+			return $this->redirect($this->Dashboard()->Link());
 			return $this->Customise(['Content' => '<p>Install in progress, please wait...</p>']);
 		}
 		return $this->redirect($this->Link('installerror'));

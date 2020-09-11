@@ -1,6 +1,11 @@
 <?php
 
 
+if (preg_match('/^\/_bc/',$_SERVER['SCRIPT_URL']))
+{
+	session_set_cookie_params(['samesite' => 'None']);
+}
+
 SilverStripe\Admin\CMSMenu::add_link('dashboard', 'Dashboard', '_bc', -100, null, 'font-icon-cart');
 
 /** Tiny MCE configurations **/

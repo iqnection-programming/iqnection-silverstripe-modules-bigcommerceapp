@@ -30,3 +30,5 @@ IQnection\BigCommerceApp\Control\Listener:
       - 'IQnection\BigCommerceApp\Model\Category::processWebhook'
     'store/product/*':
       - 'IQnection\BigCommerceApp\Model\Product::processWebhook'
+SilverStripe\Control\Session:
+  cookie_secure: true

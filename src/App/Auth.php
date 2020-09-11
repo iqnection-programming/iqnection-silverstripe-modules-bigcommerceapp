@@ -57,7 +57,7 @@ class Auth extends Security
 			"?BackURL=" . urlencode($_SERVER['REQUEST_URI'])
 		));
 	}
-		
+	
 	public function DashboardLoginForm()
 	{
 		return $this->Form();

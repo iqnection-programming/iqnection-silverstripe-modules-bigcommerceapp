@@ -6,6 +6,7 @@ use SilverStripe\Core\Extension;
 use SilverStripe\View\SSViewer;
 use SilverStripe\View\Requirements;
 use SilverStripe\View\ThemeResourceLoader;
+use SilverStripe\Core\Manifest\ModuleResourceLoader;
 use UncleCheese\Dropzone\FileAttachmentField;
 use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
@@ -18,6 +19,8 @@ class DashboardTheme extends Extension
 	private static $hidden = false;
 	private static $page_title;
 	
+	protected $package_name = 'iqnection-modules/silverstripe-bigcommerceapp';
+	
 	private static $theme_packages = [
 		'base',
 	];
@@ -26,19 +29,15 @@ class DashboardTheme extends Extension
 		'base' => [
 			'css' => [
 				"assets/vendor/bootstrap/css/bootstrap.min.css",
-//				"assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
 				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
 				"assets/vendor/select2/css/select2.min.css",
-//				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
 			],
 			'js' => [
-//				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/libs/js/main-js.js",
 				"assets/vendor/select2/js/select2.full.min.js",
-//				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js",
 				"assets/vendor/shortable-nestable/Sortable.min.js",
 			]
 		],
@@ -51,9 +50,7 @@ class DashboardTheme extends Extension
 			],
 			'js' => [
 				"assets/vendor/datatables/js/dataTables.bootstrap4.min.js",
-//				"assets/vendor/datatables/js/buttons.bootstrap4.min.js",
 				"assets/vendor/datatables/js/data-table.js",
-//				"https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js",
 				"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js",
 				"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js",
 				"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js",
@@ -70,7 +67,6 @@ class DashboardTheme extends Extension
 			'css' => [],
 			'js' => [
 				"assets/vendor/inputmask/js/jquery.inputmask.bundle.js",
-//				"assets/vendor/jquery/jquery-3.3.1.min.js",
 				"assets/vendor/bootstrap/js/bootstrap.bundle.js",
 				"assets/vendor/slimscroll/jquery.slimscroll.js",
 				"assets/vendor/parsley/parsley.js",
@@ -124,21 +120,36 @@ class DashboardTheme extends Extension
 			}
 			$cssFile = preg_replace('/\.css|\.scss/','',$cssFile);
 			// searching this way will favor a .scss file over .css
-			foreach(['.css','.scss'] as $ext)
+			foreach(['.css'] as $ext)
 			{
+				// see if our site theme has an override stylesheet
 				if ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource($cssFile.$ext,array($themeName)))
 				{
-					$CssFiles[$cssFile] = $CssFilePath;
+					$CssFiles[$this->package_name.':'.$cssFile] = $CssFilePath;
 				}
 				elseif ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource('css/'.$cssFile.$ext,array($themeName)))
 				{
-					$CssFiles[$cssFile] = $CssFilePath;
+					$CssFiles[$this->package_name.':'.$cssFile] = $CssFilePath;
+				}
+				// no override, find teh package file path and include it
+				elseif ($CssFilePath = ModuleResourceLoader::resourcePath($this->package_name.':'.$cssFile.$ext,array($themeName)))
+				{
+					$CssFiles[$this->package_name.':'.$cssFile] = $this->package_name.':'.$cssFile.$ext;
+				}
+				// see if our theme has a stylesheet extension to include along with the package stylesheet
+				if ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource($cssFile.'_extension'.$ext,array($themeName)))
+				{
+					$CssFiles[$cssFile.'_extension'] = $CssFilePath;
+				}
+				elseif ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource('css/'.$cssFile.'_extension'.$ext,array($themeName)))
+				{
+					$CssFiles[$cssFile.'_extension'] = $CssFilePath;
 				}
 			}
 		}
 		if (count($CssFiles))
 		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles);
+			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles, []);
 		}
 	}
 	
@@ -160,9 +171,27 @@ class DashboardTheme extends Extension
 				Requirements::javascript($jsFile);
 				continue;
 			}
-			if ($JsFilePath = ThemeResourceLoader::inst()->findThemedJavascript($jsFile,array($themeName)))
+			if ($JsFilePath = ThemeResourceLoader::inst()->findThemedResource($jsFile.$ext,array($themeName)))
 			{
-				$JsFiles[$JsFilePath] = $JsFilePath;
+				$JsFiles[$this->package_name.':'.$jsFile] = $JsFilePath;
+			}
+			elseif ($JsFilePath = ThemeResourceLoader::inst()->findThemedResource('javascript/'.$jsFile.$ext,array($themeName)))
+			{
+				$JsFiles[$this->package_name.':'.$jsFile] = $JsFilePath;
+			}
+			// no override, find teh package file path and include it
+			elseif ($JsFilePath = ModuleResourceLoader::resourcePath($this->package_name.':'.$jsFile.$ext,array($themeName)))
+			{
+				$JsFiles[$this->package_name.':'.$jsFile] = $this->package_name.':'.$jsFile.$ext;
+			}
+			// see if our theme has a stylesheet extension to include along with the package stylesheet
+			if ($JsFilePath = ThemeResourceLoader::inst()->findThemedResource($jsFile.'_extension'.$ext,array($themeName)))
+			{
+				$JsFiles[jsFile.'_extension'] = $JsFilePath;
+			}
+			elseif ($JsFilePath = ThemeResourceLoader::inst()->findThemedResource('javascript/'.$jsFile.'_extension'.$ext,array($themeName)))
+			{
+				$JsFiles[jsFile.'_extension'] = $JsFilePath;
 			}
 		}
 
@@ -207,9 +236,8 @@ class DashboardTheme extends Extension
 	public function setDashboardTheme()
 	{
 		$baseThemes = SSViewer::get_themes();
-
 		$newThemeStack = [
-			$this->owner->Config()->get('theme_name'),
+//			$this->owner->Config()->get('theme_name'),
 			'$public',
 			'$default'
 		];
