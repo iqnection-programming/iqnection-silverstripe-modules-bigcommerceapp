@@ -101,7 +101,10 @@ class WidgetPlacement extends DataObject implements ApiObjectInterface
 	
 	public function onBeforeDelete()
 	{
-		$this->Unlink();
+		parent::onBeforeDelete();
+		try {
+			$this->Unlink();
+		} catch (\Exception $e) { }
 	}
 }
 

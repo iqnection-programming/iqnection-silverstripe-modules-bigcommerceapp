@@ -175,7 +175,16 @@ class Widgets extends Main
 		{
 			if ($widget = $this->currentRecord())
 			{
-				$widget->SyncPlacements();
+				try {
+					$widget->SyncPlacements();
+				} catch (\Exception $e) {
+					$this->addAlert('There was an error syncing the widget','danger');
+					$this->addAlert($e->getMessage(),'danger');
+					if (method_exists($e, 'getResponseBody'))
+					{
+						$this->addAlert(json_encode($e->getResponseBody()),'danger');
+					}
+				}
 			}
 		}
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, false);
@@ -191,10 +200,10 @@ class Widgets extends Main
 				$this->addAlert('Widget Configuration Synced');
 			} catch (\Exception $e) {
 				$this->addAlert('There was an error syncing the widget','danger');
-				$this->addAlert($e->getMessage());
+				$this->addAlert($e->getMessage(),'danger');
 				if (method_exists($e, 'getResponseBody'))
 				{
-					$this->addAlert(json_encode($e->getResponseBody()));
+					$this->addAlert(json_encode($e->getResponseBody()),'danger');
 				}
 			}
 		}

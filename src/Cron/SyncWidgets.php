@@ -63,8 +63,12 @@ class SyncWidgets extends Sync
 			
 		}
 		sleep(2);
-		// remove left over 
-		$removeDbRecords = Widget::get()->Exclude('ID',$syncedIDs);
+		// unlink left over 
+		$removeDbRecords = Widget::get();
+		if (count($syncedIDs))
+		{
+			$removeDbRecords = $removeDbRecords->Exclude('ID',$syncedIDs);
+		}
 		$this->message($removeDbRecords->Count().' Widgets to remove');
 		$count = $removeDbRecords->Count();
 		foreach($removeDbRecords as $removeDbRecord)
@@ -79,6 +83,6 @@ class SyncWidgets extends Sync
 		$this->message($updated+$created+$removed.' Widgets Synced');
 		$this->message($updated.' Widgets Updated');
 		$this->message($created.' Widgets Created');
-		$this->message($removed.' Widgets Removed');
+		$this->message($removed.' Widgets Unlinked');
 	}
 }

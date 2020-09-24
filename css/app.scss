@@ -45,25 +45,25 @@ ul.selectiongroup							{ display:block; list-style:none; margin:0;
 	&:hover									{ box-shadow:0 0 3px 0 #000; }
 	input:checked + &						{ box-shadow:0 0 4px 0 #390; }
 }
-/*
-<div class="content-block-column-split-preview">
-	<div style="width:33%">33</div>
-	<div style="width:33%">33</div>
-	<div style="width:33%">33</div>
-</div>*/
+
 .related-component-content					{ max-height:300px; overflow:hidden; }
 
 .has-loading								{ position:relative;
 	.loading-overlay						{ position:absolute; display:flex; align-items:center; justify-content:center; top:0; right:0; bottom:0; left:0; z-index:100; background-color:rgba(255,255,255,0.6); }
 }
 
-.optionset		 							{
+.optionset		 							{ list-style: none;
 	label									{ cursor:pointer;
 		input:checked + img					{ box-shadow:0 0 4px 2px #3072b7; }
 	}
 	.horizontal								{ display:flex; align-items:flex-start; justify-content:flex-start; flex-wrap:wrap; border:none; margin-left:-15px;
 		> div								{ margin-left:15px; }
 	}
+}
+
+.sortable-drag								{ opacity:1; }
+.sortable-ghost								{ background:darken($white, 10%); 
+	> *										{ opacity:0; }
 }
 
 .dashboard-wrapper							{

@@ -318,8 +318,7 @@ JS
 		}
 		if ($orders = $this->getRequest()->requestVar('order'))
 		{
-//			$cols = ['ID','BigID','Title','SKU','Created'];
-			$cols = ['Title','SKU'];
+			$cols = ['ID','BigID','Title','SKU','Created'];
 			foreach($orders as $order)
 			{
 				$col = $cols[$order['column']];
@@ -385,17 +384,6 @@ JS
 			$Title .= ' | '.$currentRecord->getTitle();
 		}
 		return $Title;
-	}
-	
-	public function Dashboard()
-	{
-    	$appClass = Main::class;
-    	$apps = $this->Config()->get('apps');
-		if (isset($apps[$app]))
-		{
-		  $appClass = $apps[$app];
-		}
-		return Injector::inst()->get($appClass);
 	}
 	
 	public function index()
@@ -522,15 +510,29 @@ JS
 				}
 				else
 				{
+					if ($field->hasClass('sortable-checkbox-set'))
+					{
+						$field->removeExtraClass('sortable-checkbox-set');
+						$field->setFieldHolderTemplate('SilverStripe/Forms/SortableCheckboxSet');
+					}
 					if ($field->hasClass('switch-button'))
 					{
 						$field->removeExtraClass('switch-button');
 						$field->removeExtraClass('mt-2');
-						$field->setFieldHolderTemplate('SwitchButtonCheckbox');
+						$field->setFieldHolderTemplate('SilverStripe/Forms/SwitchButtonCheckbox');
 					}
 					elseif (!$field->hasClass('horizontal'))
 					{
-						$field->addExtraClass('w-auto d-inline-block');
+						if ($field->hasClass('button-group'))
+						{
+							$field->setTemplate('SilverStripe/Forms/RadioButtonGroup');
+							$field->removeExtraClass('button-group');
+							$field->addExtraClass('border-0');
+						}
+						else
+						{
+							$field->addExtraClass('w-auto d-inline-block');
+						}
 					}
 				}
 			}
@@ -1109,19 +1111,33 @@ JS
 		{
 			$this->addAlert('Record not found','danger');
 		}
+		$success = false;
+		$errors = [];
+		$message = null;
 		try {
 			$component->delete();
 			$record->NeedsSync = true;
 			$record->write();
+			$success = true;
+			$message = $component->singular_name().' Removed';
+			$this->addAlert($component->singular_name().' Removed');
 		} catch (\Exception $e) {
-			throw $e;
+			$errors[] = 'There was an error removing the record';
+			$this->addAlert('There was an error removing the record','danger');
+			$this->addAlert($e->getMessage(),'danger');
+			$errors[] = $e->getMessage();
+			if (method_exists($e, 'getResponseBody'))
+			{
+				$errors[] = json_encode($e->getResponseBody());
+				$this->addAlert(json_encode($e->getResponseBody()),'danger');
+			}
 		}
-		$this->addAlert($component->singular_name().' Removed');
 		if ($this->getRequest()->isAjax())
 		{
-			header('Content-type: application/json');
-			print json_encode(['success' => true]);
-			die();
+			return $this->ajax_response([],$success, $errors, $message);
+//			header('Content-type: application/json');
+//			print json_encode(['success' => $success]);
+//			die();
 		}
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));

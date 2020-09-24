@@ -193,7 +193,11 @@ class RegisterWidgetTemplate extends BuildTask
 			}
 		}
 		$removed = 0;
-		foreach($dbTemplates->Exclude('ID',$syncedIDs) as $removeTemplate)
+		if (count($syncedIDs))
+		{
+			$dbTemplates = $dbTemplates->Exclude('ID',$syncedIDs);
+		}
+		foreach($dbTemplates as $removeTemplate)
 		{
 			$this->message($removeTemplate->Title.' no longer exists - removing');
 			$removeTemplate->BigID = null;
