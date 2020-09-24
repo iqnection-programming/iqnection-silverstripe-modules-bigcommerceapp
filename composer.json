@@ -16,7 +16,7 @@
 		"bigcommerce/api": "^3.0",
 		"unclecheese/dropzone": "dev-master",
 		"axllent/silverstripe-bootstrap-forms": "dev-master",
-		"salesforce/handlebars-php": "2.*"
+		"salesforce/handlebars-php": "*"
 	},
 	"autoload": {
 		"psr-4": {
