@@ -62,6 +62,25 @@ class WidgetEntity extends Entity
 		return $this;
 	}
 	
+	public static function getById($id, $refresh = false)
+	{
+		if ($id)
+		{
+			$cacheName = self::generateCacheKey(self::Config()->get('cache_name'),__FUNCTION__,$id);
+			$cachedData = self::fromCache($cacheName);
+			if ( (!self::isCached($cacheName)) || (!$cachedData) || ($refresh) )
+			{
+				$inst = Injector::inst()->create(static::class, []);
+				$apiClient = $inst->ApiClient();
+				$apiResponse = $apiClient->getWidget($id);
+				$inst->loadApiData($apiResponse->getData());
+				$cachedData = $inst;
+				self::toCache($cacheName, $inst);
+			}
+			return $cachedData;
+		}
+	}
+	
 	public static function getAll($refresh = false)
 	{
 		$cacheName = self::generateCacheKey(self::Config()->get('cache_name'),__FUNCTION__);

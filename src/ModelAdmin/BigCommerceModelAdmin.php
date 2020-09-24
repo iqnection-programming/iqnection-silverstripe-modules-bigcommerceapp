@@ -10,12 +10,6 @@ class BigCommerceModelAdmin extends ModelAdmin
 		\IQnection\BigCommerceApp\Model\Widget::class => [
 			'title'=>'Widgets'
 		],
-		\IQnection\BigCommerceApp\Model\WidgetTemplate::class => [
-			'title'=>'Widget Templates'
-		],
-		\IQnection\BigCommerceApp\Model\Category::class => [
-			'title' => 'Categories'
-		],
 		\IQnection\BigCommerceApp\Model\BigCommerceLog::class => [
 			'title' => 'API Logs'
 		]

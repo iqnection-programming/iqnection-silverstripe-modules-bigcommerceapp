@@ -128,7 +128,11 @@ class SyncCategories extends Sync
 		{
 			sleep(2);
 			// remove left over categories
-			$removeCategories = Category::get()->Exclude('ID',$syncedIDs);
+			$removeCategories = Category::get();
+			if (count($syncedIDs))
+			{
+				$removeCategories = $removeCategories->Exclude('ID',$syncedIDs);
+			}
 			$this->message($removeCategories->Count().' Categories to remove');
 			$count = $removeCategories->Count();
 			foreach($removeCategories as $category)

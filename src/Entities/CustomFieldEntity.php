@@ -96,4 +96,13 @@ class CustomFieldEntity extends Entity
 		}
 		return $cachedData;
 	}
+	
+	public function delete()
+	{
+		if ( ($id = $this->BigID) || ($id = $this->id) )
+		{
+			$apiClient = $this->ApiClient();
+			return $apiClient->deleteCustomField($id);
+		}
+	}
 }

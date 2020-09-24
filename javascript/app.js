@@ -1,12 +1,22 @@
 (function($){
 	"use strict";
 	$(document).ready(function(){
+		/** find any elements that might need to be moved on the page, 
+		 * this is setup to accomodate bootstrap styles that might not be possible using just SilverStripe forms
+		 * your wrapper/container element should have a data attribute set like data-absorb="my element"
+		 * upon page load, elements with a data attribute of data-absorbable="my element" will be moved into the wrapper/container
+		 */
+		$("[data-absorb]").each(function(){
+			if ($('[data-absorbable="'+$(this).data('absorb')+'"]').length) {
+				$(this).append($('[data-absorbable="'+$(this).data('absorb')+'"]').parents('.field').show());
+			}
+		});
 		if (typeof $.fn.select2 === 'function') {
 			var select2config = {};
 			$("select[data-ajax-call]").each(function(){
 				select2config = {
 					minimumInputLength: 3,
-					placeholder: 'Search Products/Categories'
+					placeholder: 'Search'
 				};
 				if (($.inArray($(this).data('resource-type'), ['categories','category']) > -1) && (window._categories !== undefined)) {
 					select2config.data = window._categories;
@@ -78,7 +88,11 @@
 				Sortable.create(this,{
 					draggable: ".sort-item",
 					handle: ".drag-handle",
+					dragoverBubble: true,
 					onUpdate: function(evt) {
+						if ($(evt.srcElement).data('record-id') === undefined) {
+							return;
+						}
 						window.loading(true);
 						var postData = {
 							_ID: $(evt.srcElement).data('record-id'),
@@ -88,10 +102,11 @@
 							item_ids: []
 						};
 						$(evt.srcElement).find('.sort-item').each(function(){
-							postData.item_ids.push($(this).data('id'));
+							if ($(this).data('id') !== undefined) {
+								postData.item_ids.push($(this).data('id'));
+							}
 						});
 						var sortUrl = window._sort_url
-						console.log(sortUrl);
 						setTimeout(function(){
 							$.ajax(sortUrl,{
 								data: postData,

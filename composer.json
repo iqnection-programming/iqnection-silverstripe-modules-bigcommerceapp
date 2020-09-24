@@ -14,7 +14,9 @@
 		"silverstripe/framework": "^4.1",
 		"moderntribe/bigcommerce-api-php-v3": "^2.0",
 		"bigcommerce/api": "^3.0",
-		"unclecheese/dropzone": "dev-master"
+		"unclecheese/dropzone": "dev-master",
+		"axllent/silverstripe-bootstrap-forms": "dev-master",
+		"salesforce/handlebars-php": "dev-master"
 	},
 	"autoload": {
 		"psr-4": {

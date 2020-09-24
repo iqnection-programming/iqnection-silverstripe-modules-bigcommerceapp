@@ -4,6 +4,11 @@
 			<div class="h4 m-0">{$Title}</div>
 			<div><a href="{$Dashboard.Link}/edit/{$Dashboard.currentRecord.ID}/relation/{$ComponentName}/" class="btn btn-success btn-sm float-right" role="button">Add Item</a></div>
 		</div>
+		<% if $Collection.Description %>
+			<div class="card-body">
+				$Collection.Description
+			</div>
+		<% end_if %>
 	</div>
 	<% if $Collection.Count %>
 		<div class="row d-flex flex-wrap align-content-stretch">

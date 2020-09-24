@@ -7,34 +7,30 @@ use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
 use IQnection\BigCommerceApp\Extensions\ApiRelatedObject;
+use IQnection\BigCommerceApp\Extensions\Sortable;
 
 class WidgetListItem extends DataObject implements \JsonSerializable
 {
-	public $Sortable = true;
-	
 	private static $extensions = [
-		ApiRelatedObject::class
+		ApiRelatedObject::class,
+		Sortable::class
 	];
 	
 	private static $table_name = 'BCWidgetListItem';
 	
 	private static $db = [
 		'Title' => 'Varchar(255)',
-		'SortOrder' => 'Int'
 	];
 	
 	private static $has_one = [
 		'Widget' => Widget::class
 	];
-	
-	private static $default_sort = 'SortOrder ASC';
-	
+		
 	private static $frontend_required_fields = [];
 	
 	public function getFrontEndFields($params = [])
 	{
 		$fields = parent::getFrontEndFields();
-		$fields->replaceField('SortOrder', Forms\HiddenField::create('SortOrder','')->setValue($this->SortOrder));
 		$fields->removeByName([
 			'ID',
 			'WidgetID'
@@ -58,11 +54,6 @@ class WidgetListItem extends DataObject implements \JsonSerializable
 			}
 		}
 		return Forms\RequiredFields::create($requiredFields);
-	}
-	
-	public function Sortable()
-	{
-		return (bool) $this->Sortable;
 	}
 	
 	public function onAfterWrite()

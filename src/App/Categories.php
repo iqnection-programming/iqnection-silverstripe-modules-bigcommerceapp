@@ -55,15 +55,7 @@ class Categories extends Main
 			}
 		}
 		return $this->redirectBack();
-	}
-	
-	
-	
-	
-	
-	
-	
-	
+	}	
 }
 
 

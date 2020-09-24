@@ -47,7 +47,8 @@ class Product extends DataObject implements ApiObjectInterface
 	
 	private static $readonly_fields = [
 		'Title',
-		'sku'
+		'sku',
+		'is_visible'
 	];
 	
 	public function ApiData() 

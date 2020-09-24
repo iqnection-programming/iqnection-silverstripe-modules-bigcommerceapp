@@ -40,8 +40,12 @@ class Listener extends Controller
 		}
 		$scope = $body->scope;
 		$data = $body->data;
+		$dataForHash = $data;
+		unset($dataForHash->created_at, $dataForHash->hash);
 		$jobHash = md5(json_encode([$scope, $data]));
 		$id = isset($body->data->id) ? $body->data->id : null;
+		// create a non-unique name so this job doesn't get replicated if there's one pending
+		$jobName = $body->store_id.'|'.$scope.'|'.$id;
 		$body = [
 			'BigID' => $id,
 			'body' => $body
@@ -53,7 +57,7 @@ class Listener extends Controller
 			{
 				list($className, $method) = explode('::',$call);
 				// only certain events are monitored
-				$job = BackgroundJob::CreateJob($className, $method, $body, null, $jobHash);
+				$job = BackgroundJob::CreateJob($className, $method, $body, $jobName, $jobHash);
 			}
 		}
 		$allEventsScope = preg_replace('/([a-zA-Z0-9\-\_]+\/[a-zA-Z0-9\-\_]+).*/','$1',$scope).'/*';
@@ -63,7 +67,7 @@ class Listener extends Controller
 			{
 				list($className, $method) = explode('::',$call);
 				// only certain events are monitored
-				$job = BackgroundJob::CreateJob($className, $method, $body, null, $jobHash);
+				$job = BackgroundJob::CreateJob($className, $method, $body, $jobName, $jobHash);
 			}
 		}
 		return $this->getResponse()->setBody(true);

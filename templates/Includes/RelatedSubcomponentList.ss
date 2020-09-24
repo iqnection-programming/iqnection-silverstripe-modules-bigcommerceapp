@@ -12,6 +12,11 @@
 				<% end_if %>
 			</div>
 		</div>
+		<% if $Collection.Description %>
+			<div class="card-body">
+				$Collection.Description
+			</div>
+		<% end_if %>
 	</div>
 	<% if $Collection.Records.Count %>
 		<div class="row d-flex flex-wrap align-content-stretch<% if $Collection.Records.First.isSortable %> sortable<% end_if %>" data-record-id="$Top.Dashboard.currentRecord.ID" data-component="$Top.RelatedComponentName" data-component-id="$Top.Dashboard.relatedObject.ID" data-subcomponent="$Collection.ComponentName.ATT">
@@ -37,7 +42,7 @@
 						</div>
 						<div class="card-footer">
 							<a href="$Dashboard.join_links($Dashboard.Link,edit,$Dashboard.currentRecord.ID,relation,$Up.RelatedComponentName,$Dashboard.relatedObject.ID,subrelation,$Up.ComponentName,$ID)" class="btn btn-sm btn-primary">Edit</a> 
-							<a href="$Dashboard.join_links($Dashboard.Link,edit,$Dashboard.currentRecord.ID,subrelationremove,$Up.RelatedComponentName,$Dashboard.relatedObject.ID,subrelation,$Up.ComponentName,$ID)" class="btn btn-sm btn-outline-danger ajax" data-ajax-before-callback="removingItem" data-ajax-after-callback="itemRemoved">Delete</a>
+							<a href="$Dashboard.join_links($Dashboard.Link,edit,$Dashboard.currentRecord.ID,relation,$Up.RelatedComponentName,$Dashboard.relatedObject.ID,subrelationremove,$Up.ComponentName,$ID)" class="btn btn-sm btn-outline-danger ajax" data-ajax-before-callback="removingItem" data-ajax-after-callback="itemRemoved">Delete</a>
 						</div>
 					</div>
 				</div>

@@ -102,7 +102,7 @@ class Install extends Controller
 			$siteconfig->BigCommerceApiScope = $responseData->scope;
 			$siteconfig->write();
 			return $this->redirect($this->Dashboard()->Link());
-			return $this->Customise(['Content' => '<p>Install in progress, please wait...</p>']);
+//			return $this->Customise(['Content' => '<p>Install in progress, please wait...</p>']);
 		}
 		return $this->redirect($this->Link('installerror'));
 	}

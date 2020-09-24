@@ -18,6 +18,7 @@ use SilverStripe\Core\ClassInfo;
 use SilverStripe\Security\Security;
 use SilverStripe\Control\Director;
 use IQnection\BigCommerceApp\Model\ApiObjectInterface;
+use Handlebars\Handlebars;
 
 class WidgetTemplate extends DataObject implements ApiObjectInterface
 {	
@@ -131,28 +132,35 @@ class WidgetTemplate extends DataObject implements ApiObjectInterface
 		return $html;
 	}
 	
+	public function getTestData()
+	{
+		return [];
+	}
+	
 	public function validateHandlebars()
 	{
 		$html = (string) $this->getTemplateHtml();
 		$html = $this->cleanHTML($html);
-		$errors = [];
-		if (preg_match('/{{[^#][^}]+?[^a-zA-Z0-9_|.}\s]+}}/',$html,$varMatches))
-		{
-			$errors[] = [
-				'error' => 'Invalid variable call',
-				'found' => $varMatches
-			];
+		$formattedHtml = preg_replace('/\n|\r|\t/','',$html);
+		$formattedHtml = preg_replace('/(\{{2,3}[^\}]+\}{2,3})/',"\n$1\n\t",$formattedHtml);
+		
+		// get the template data
+		$data = $this->getTestData();
+		
+		$result = [
+			'errors' => [],
+			'result' => null,
+			'template' => $formattedHtml,
+			'data' => $data,
+		];
+		
+		try {
+			$handlebars = new Handlebars();
+			$result['result'] = $handlebars->render($html, $data);
+		} catch (\Exception $e) {
+			$result['errors'] = 'ERROR: ['.get_class($e).']'.$e->getMessage();
 		}
-		$noHtml = preg_replace('/[^{}]*?({+[^}]+}+)[^{}]*/','',$html);
-		$noVariables = preg_replace('/{{2,3}[^#}\/]+}{2,3}/','',$noHtml);
-		if ( (preg_match('/{{#/',$noVariables)) && (preg_match('/{{#(\w+).*?{{\/\1}}/',$noVariables,$blockMatches)) )
-		{
-			$errors[] = [
-				'error' => 'Possible unclosed blocks',
-				'found' => $blockMatches
-			];
-		}
-		return $errors;
+		return $result;
 	}
 	
 	protected function cleanHTML($html)

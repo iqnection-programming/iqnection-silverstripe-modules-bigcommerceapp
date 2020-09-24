@@ -1,7 +1,7 @@
 <?php
 
 
-if (preg_match('/^\/_bc/',$_SERVER['SCRIPT_URL']))
+if ( (isset($_SERVER['SCRIPT_URL'])) && (preg_match('/^\/_bc/',$_SERVER['SCRIPT_URL'])) )
 {
 	session_set_cookie_params(['samesite' => 'None']);
 }

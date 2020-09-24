@@ -11,6 +11,7 @@ use UncleCheese\Dropzone\FileAttachmentField;
 use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
+use IQnection\BigCommerceApp\App\Main;
 
 
 class DashboardTheme extends Extension
@@ -83,6 +84,17 @@ class DashboardTheme extends Extension
 		]
 	];
 	
+	public function Dashboard()
+	{
+    	$appClass = Main::class;
+    	$apps = Main::Config()->get('apps');
+		if (isset($apps[$app]))
+		{
+		  $appClass = $apps[$app];
+		}
+		return Injector::inst()->get($appClass);
+	}
+	
 	public function Link($action = null)
 	{
 		return \SilverStripe\Control\Controller::join_links('/',$this->owner->Config()->get('url_segment'),$action);
@@ -120,36 +132,29 @@ class DashboardTheme extends Extension
 			}
 			$cssFile = preg_replace('/\.css|\.scss/','',$cssFile);
 			// searching this way will favor a .scss file over .css
-			foreach(['.css'] as $ext)
+			foreach(['.css','.scss'] as $ext)
 			{
 				// see if our site theme has an override stylesheet
-				if ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource($cssFile.$ext,array($themeName)))
+				$packageResource = ModuleResourceLoader::resolveResource($this->package_name.':'.$cssFile.$ext);
+				if ($themeResource = ThemeResourceLoader::inst()->findThemedResource($cssFile.$ext))
 				{
-					$CssFiles[$this->package_name.':'.$cssFile] = $CssFilePath;
-				}
-				elseif ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource('css/'.$cssFile.$ext,array($themeName)))
-				{
-					$CssFiles[$this->package_name.':'.$cssFile] = $CssFilePath;
+					$CssFiles[$this->package_name.':'.$cssFile] = $themeResource;
 				}
 				// no override, find teh package file path and include it
-				elseif ($CssFilePath = ModuleResourceLoader::resourcePath($this->package_name.':'.$cssFile.$ext,array($themeName)))
+				elseif ($packageResource->exists())
 				{
-					$CssFiles[$this->package_name.':'.$cssFile] = $this->package_name.':'.$cssFile.$ext;
+					$CssFiles[$this->package_name.':'.$cssFile] = $packageResource->getRelativePath();
 				}
 				// see if our theme has a stylesheet extension to include along with the package stylesheet
-				if ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource($cssFile.'_extension'.$ext,array($themeName)))
+				if ($themeResourceExtension = ThemeResourceLoader::inst()->findThemedResource($cssFile.'_extension'.$ext))
 				{
-					$CssFiles[$cssFile.'_extension'] = $CssFilePath;
-				}
-				elseif ($CssFilePath = ThemeResourceLoader::inst()->findThemedResource('css/'.$cssFile.'_extension'.$ext,array($themeName)))
-				{
-					$CssFiles[$cssFile.'_extension'] = $CssFilePath;
+					$CssFiles[$cssFile.'_extension'] = $themeResourceExtension;
 				}
 			}
 		}
 		if (count($CssFiles))
 		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles, []);
+			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles);
 		}
 	}
 	

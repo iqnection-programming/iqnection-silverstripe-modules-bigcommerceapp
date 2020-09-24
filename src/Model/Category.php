@@ -47,7 +47,8 @@ class Category extends DataObject implements ApiObjectInterface
 	
 	private static $readonly_fields = [
 		'Title',
-		'sku'
+		'sku',
+		'is_visible'
 	];
 	
 	public function CanDelete($member = null, $context = []) { return false; }
@@ -63,9 +64,6 @@ class Category extends DataObject implements ApiObjectInterface
 			'is_visible',
 			'layout_file'
 		]);
-		
-//		$this->extend('updateFrontEndFields',$fields);
-//		$fields->unshift($fields->dataFieldByName('Title')->setAttribute('disabled','disabled'));
 		
 		return $fields;
 	}
@@ -171,9 +169,14 @@ class Category extends DataObject implements ApiObjectInterface
 		return $this;
 	}
 	
+	public function AllChildren()
+	{
+		return Category::get()->Filter(['ParentID' => $this->ID]);
+	}
+	
 	public function Children()
 	{
-		return Category::get()->Filter('ParentID', $this->ID);
+		return $this->AllChildren()->Filter(['is_visible' => 1]);
 	}
 	
 	public function processWebhook($args)

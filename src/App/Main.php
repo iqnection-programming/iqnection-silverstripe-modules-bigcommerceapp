@@ -318,7 +318,8 @@ JS
 		}
 		if ($orders = $this->getRequest()->requestVar('order'))
 		{
-			$cols = ['ID','BigID','Title','SKU','Created'];
+//			$cols = ['ID','BigID','Title','SKU','Created'];
+			$cols = ['Title','SKU'];
 			foreach($orders as $order)
 			{
 				$col = $cols[$order['column']];

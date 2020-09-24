@@ -12,6 +12,11 @@
 				<% end_if %>
 			</div>
 		</div>
+		<% if $Collection.Description %>
+			<div class="card-body">
+				$Collection.Description
+			</div>
+		<% end_if %>
 	</div>
 	<% if $Collection.Records.Count %>
 		<div class="row d-flex flex-wrap align-content-stretch<% if $Collection.Records.First.isSortable %> sortable<% end_if %>" data-record-id="$Top.Dashboard.currentRecord.ID" data-component="$Collection.ComponentName.ATT">

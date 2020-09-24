@@ -17,7 +17,7 @@
 		<% if $Children.Count %>
 		<div id="collapse-$ID" class="collapse" data-parent="category-accordion">
 			<ul class="list-group pl-3">
-			<% loop $Children %>
+			<% loop $AllChildren %>
 				<li class="list-group-item border-left-0 border-right-0 py-2 <% if not $is_visible %> bc-hidden<% end_if %><% if $Last %> border-bottom-0<% end_if %>" data-filter-value="$Title.Lowercase.ATT">
 				<% include CategoryListItem %>
 				</li>

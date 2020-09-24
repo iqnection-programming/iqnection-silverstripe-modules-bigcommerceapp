@@ -35,11 +35,11 @@
 				<table class="table table-striped table-bordered" data-src="{$AbsoluteLink}/search" id="product-list">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>BC ID</th>
+<%--							<th>ID</th>--%>
+<%--							<th>BC ID</th>--%>
 							<th>Name</th>
 							<th>SKU</th>
-							<th>Created</th>
+<%--							<th>Created</th>--%>
 							<th class="text-right">&nbsp;</th>
 						</tr>
 					</thead>
@@ -59,11 +59,11 @@
 					</tbody>
 					<tfoot>
 						<tr>
-							<th>ID</th>
-							<th>BC ID</th>
+<%--							<th>ID</th>--%>
+<%--							<th>BC ID</th>--%>
 							<th>Name</th>
 							<th>SKU</th>
-							<th>Created</th>
+<%--							<th>Created</th>--%>
 							<th class="text-right">&nbsp;</th>
 						</tr>
 					</tfoot>

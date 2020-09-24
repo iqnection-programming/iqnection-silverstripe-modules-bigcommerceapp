@@ -137,6 +137,10 @@ class ProductEntity extends Entity
 			{
 				$filters['include'] = 'categories';
 			}
+			if (!in_array('images', $filters))
+			{
+				$filters['include'] = 'images';
+			}
 			$apiResponse = $apiClient->getProducts($filters);
 			$responseMeta = $apiResponse->getMeta();
 			while(($apiRecords = $apiResponse->getData()) && (count($apiRecords)))
@@ -169,6 +173,10 @@ class ProductEntity extends Entity
 			if (!in_array('custom_fields', $additionalParams))
 			{
 				$additionalParams['include'] = 'custom_fields';
+			}
+			if (!in_array('images', $additionalParams))
+			{
+				$additionalParams['include'] = 'images';
 			}
 			$cachedData = Injector::inst()->create(static::class, []);
 			$apiClient = $cachedData->ApiClient();

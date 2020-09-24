@@ -79,7 +79,11 @@ class SyncProducts extends Sync
 		if ((!$request) || (!$request->requestVar('page')))
 		{
 			// remove left over products
-			$removeProducts = Product::get()->Exclude('ID',$syncedIDs);
+			$removeProducts = Product::get();
+			if (count($syncedIDs))
+			{
+				$removeProducts = $removeProducts->Exclude('ID',$syncedIDs);
+			}
 			$this->message($removeProducts->Count().' Products to remove');
 			$count = $removeProducts->Count();
 			foreach($removeProducts as $product)

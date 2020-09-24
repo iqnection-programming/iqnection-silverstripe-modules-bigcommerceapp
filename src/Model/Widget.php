@@ -73,6 +73,14 @@ class Widget extends DataObject implements ApiObjectInterface
 		return $fields;
 	}
 	
+	public function Pull() 
+	{
+		$data = $this->Entity()->getByID($this->BigID, true);
+		$this->invokeWithExtensions('loadApiData',$data);
+		$this->write();
+		return $this;
+	}
+	
 	public function getFrontEndRequiredFields(Forms\FieldList &$fields)
 	{
 		$requiredFields = parent::getFrontEndRequiredFields($fields);
