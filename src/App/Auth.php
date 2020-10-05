@@ -68,7 +68,7 @@ class Auth extends Security
 	 */
 	public function load()
 	{
-		BCLog::info('App Load', $data);
+//		BCLog::info('App Load', $data);
 		$signed_payload = $this->getRequest()->getVar('signed_payload');
 		if (!$data = $this->verifyBcSignedRequest($signed_payload))
 		{
@@ -91,7 +91,7 @@ class Auth extends Security
 		$identityStore->logOut($this->getRequest());
         	$identityStore->logIn($member, true, $this->getRequest());
 		$this->addAlert('Logged Successfully');
-		BCLog::info('Logged Successfully', $data);
+//		BCLog::info('Logged Successfully', $data);
 		return $this->redirect(Injector::inst()->get(Main::class)->AbsoluteLink('?sess='.$member->TempIDHash));
 	}
 	

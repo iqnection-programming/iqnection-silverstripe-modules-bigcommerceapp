@@ -73,9 +73,16 @@ class Entity extends ArrayData implements \JsonSerializable
 	{
 		$this->array = [];
 		$this->loadedData = $data;
-		if ( (is_object($data)) && (method_exists($data, 'get')) )
+		if (is_object($data))
 		{
-			$data = $data->get();
+			if (method_exists($data, 'get'))
+			{
+				$data = $data->get();
+			}
+			else
+			{
+				$data = (array) $data;
+			}
 		}
 		$childEntitiesMap = $this->owner->Config()->get('_childEntitiesMap');
 		if (!is_array($data)) { return; }
@@ -126,11 +133,11 @@ class Entity extends ArrayData implements \JsonSerializable
 					}
 				}
 			}
-			$this->setField($key, $value);
 			if (is_string($value))
 			{
-				$this->setField($key, trim($value));
+				$value = trim($value);
 			}
+			$this->setField($key, $value);
 		}
 		return $this;
 	}

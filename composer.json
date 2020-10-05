@@ -15,7 +15,7 @@
 		"moderntribe/bigcommerce-api-php-v3": "^2.0",
 		"bigcommerce/api": "^3.0",
 		"unclecheese/dropzone": "dev-master",
-		"axllent/silverstripe-bootstrap-forms": "dev-master"
+		"axllent/silverstripe-bootstrap-forms": "^2.0"
 	},
 	"suggest": {
 		"salesforce/handlebars-php": "Allows validation of handle bars templates used in Widgets"

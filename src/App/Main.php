@@ -166,13 +166,13 @@ class Main extends Controller
 			}
 			if ($currentUser)
 			{
-				BCLog::info('Setting user from temp hash', $tempIdHash);
+//				BCLog::info('Setting user from temp hash', $tempIdHash);
 				Security::setCurrentUser($currentUser);
 				$this->addAlert('Low Security Authentication Used. Cookie Value: '.$tempIdHash, 'warning');
 			}
 			else
 			{
-				BCLog::info('User not logged in', $tempIdHash);
+//				BCLog::info('User not logged in', $tempIdHash);
 			}
 		}
 		if (!$currentUser)

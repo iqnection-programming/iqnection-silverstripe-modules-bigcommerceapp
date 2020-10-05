@@ -3,6 +3,7 @@
 namespace IQnection\BigCommerceApp\Cron;
 
 use SilverStripe\Control\Controller;
+use IQnection\BigCommerceApp\Model\Notification;
 
 class BackgroundJobs extends Sync
 {
@@ -44,6 +45,7 @@ class BackgroundJobs extends Sync
 				$this->reportJob($runningJob->Name.' created on '.$runningJob->Created.' Killed');
 				$runningJob->Status = BackgroundJob::STATUS_FAILED;
 				$runningJob->write();
+				Notification::NotifyAll('!! Server Job was Killed due to Failure to Complete: [ID:'.$runningJob->ID.'] '.$runningJob->Name);
 			}
 		}
 	}
@@ -163,6 +165,7 @@ class BackgroundJobs extends Sync
 			{
 				$this->reportJob($e->getResponseBody(),'EXCEPTION');
 			}
+			Notification::NotifyAll('!! Server Job Failed: [ID:'.$job->ID.'] '.$job->Name);
 		}
 		return $job;
 	}
