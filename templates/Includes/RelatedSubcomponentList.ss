@@ -1,7 +1,8 @@
-<!-- template: /Includes/RelatedSubcomponentList -->
+<!-- template: /Includes/RelatedSubcomponentList -->	
 	<div class="card mb-1" id="$ComponentName.LowerCase.URLATT">
 		<div class="card-header d-flex justify-content-between">
 			<div class="h4 m-0">{$Name}</div>
+			<% if $Top.Dashboard.relatedObject.Exists %>
 			<div>
 				<% if $Collection.ClassNames.Count %>
 					<% loop $Collection.ClassNames %>
@@ -11,6 +12,7 @@
 					<a href="$Top.Dashboard.join_links($Top.Dashboard.Link,edit,$Top.Dashboard.currentRecord.ID,relation,$Top.RelatedComponentName,$Top.Dashboard.relatedObject.ID,subrelation,$ComponentName)/" class="btn btn-success btn-sm float-right" role="button">Add New</a>
 				<% end_if %>
 			</div>
+			<% end_if %>
 		</div>
 		<% if $Collection.Description %>
 			<div class="card-body">
@@ -51,7 +53,11 @@
 	<% else %>
 		<div class="card">
 			<div class="card-body">
-				<p>No Items</p>
+				<% if $Top.Dashboard.relatedObject.Exists %>
+					<p>No Items</p>
+				<% else %>
+					<p>You must save before adding items</p>
+				<% end_if %>
 			</div>
 		</div><!--/.card-->
 	<% end_if %>

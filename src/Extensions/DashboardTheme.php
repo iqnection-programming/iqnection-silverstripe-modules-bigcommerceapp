@@ -12,6 +12,8 @@ use SilverStripe\Forms;
 use SilverStripe\View\ArrayData;
 use SilverStripe\ORM\ArrayList;
 use IQnection\BigCommerceApp\App\Main;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\Injector\Injector;
 
 
 class DashboardTheme extends Extension
@@ -84,7 +86,17 @@ class DashboardTheme extends Extension
 		]
 	];
 	
-	public function Dashboard()
+	public function ModuleName()
+	{
+		if (!$Title = $this->owner->Config()->get('page_title', Config::UNINHERITED))
+		{
+			$nav = $this->owner->Config()->get('nav_links', Config::UNINHERITED);
+			$Title = key($nav);
+		}
+		return $Title;
+	}
+	
+	public function Dashboard($app = null)
 	{
     	$appClass = Main::class;
     	$apps = Main::Config()->get('apps');

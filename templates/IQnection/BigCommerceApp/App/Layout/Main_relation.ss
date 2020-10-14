@@ -30,9 +30,9 @@
 	</div>
 </div>
 
-<% if $relatedObject.Exists && $currentRecord.RelatedObjects.Count %>
+<% if $relatedObject.RelatedObjects.Count %>
 	<% loop $relatedObject.RelatedObjects %>
-		<% include RelatedSubcomponentList Collection=$Me, RelatedComponentName=$Top.ComponentName %>
+		<% include RelatedSubcomponentList Collection=$Me, RelatedComponentName=$Top.ComponentName, RelatedParent=$relatedObject %>
 	<% end_loop %>
 <% end_if %>
 

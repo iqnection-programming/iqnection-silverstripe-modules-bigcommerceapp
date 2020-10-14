@@ -21,10 +21,23 @@
     <div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
         <div class="card">
             <div class="card-body">
+				<form method="GET" class="form-inline">
+					<div class="form-group mr-2">
+						<select name="Filters[Status]" class="form-control">
+							<option value="All">All</option>
+							<option value="open"<% if $Filters.Status == 'open' %> selected<% end_if %>>Open</option>
+							<option value="running"<% if $Filters.Status == 'running' %> selected<% end_if %>>Running</option>
+							<option value="failed"<% if $Filters.Status == 'failed' %> selected<% end_if %>>Failed</option>
+							<option value="complete"<% if $Filters.Status == 'complete' %> selected<% end_if %>>Completed</option>
+						</select>
+					</div>
+					<button type="submit" class="btn btn-outline">Search</button>
+				</form>
                 <div class="table-responsive">
                     <table class="table table-striped table-bordered first">
                         <thead>
                             <tr>
+								<th>#</th>
 								<th>ID</th>
                                 <th>Name</th>
                                 <th>Date</th>
@@ -36,9 +49,10 @@
                         <tbody>
                             <% loop $Logs %>
                               <tr>
+								  <td>$Pos</td>
 								  <td>$ID</td>
                                   <td>$Name</td>
-                                  <td>$Created.Date</td>
+                                  <td>$Created</td>
                                   <td>{$CallClass}::{$CallMethod}</td>
 								  <th>$Status</th>
                                   <td class="text-nowrap text-right">
@@ -49,6 +63,7 @@
                       </tbody>
                   </table>
               </div>
+			<% include Pagination Collection=$Logs %>
           </div>
       </div>
   </div>

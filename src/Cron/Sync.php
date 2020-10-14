@@ -23,7 +23,6 @@ class Sync extends BuildTask
 			$this->message('This task should only be run in a cli');
 			die();
 		}
-		$this->message("There's nothing to run in this class");
 	}
 	
 	public function run($request)

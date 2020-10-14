@@ -10,6 +10,7 @@ use SilverStripe\Assets\File;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\View\ArrayData;
 use IQnection\BigCommerceApp\Cron\BackgroundJob;
+use SilverStripe\ORM\PaginatedList;
 
 class AppLogs extends Main
 {
@@ -84,8 +85,17 @@ class AppLogs extends Main
 //	
 	public function index()
 	{
+		$jobs = BackgroundJob::get()->Sort('ID','DESC');
+		if ($filters = $this->getRequest()->requestVar('Filters'))
+		{
+			$jobs = $jobs->Filter($filters);
+		}
+		$jobs = PaginatedList::create($jobs);
+		$jobs->setRequest($this->getRequest());
+		$jobs->setPageLength(250);
 		return $this->Customise([
-			'Logs' => BackgroundJob::get()->Sort('ID','DESC')
+			'Logs' => $jobs,
+			'Filters' => ArrayData::create($filters ? $filters : [])
 		]);
 	}
 	

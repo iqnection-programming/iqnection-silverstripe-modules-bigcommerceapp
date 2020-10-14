@@ -369,7 +369,7 @@ JS
 	
 	public function Title()
 	{
-		if (!$Title = $this->Config()->get('page_title'))
+		if (!$Title = $this->Config()->get('page_title', Config::UNINHERITED))
 		{
 			$nav = $this->Config()->get('nav_links', Config::UNINHERITED);
 			$Title = key($nav);
