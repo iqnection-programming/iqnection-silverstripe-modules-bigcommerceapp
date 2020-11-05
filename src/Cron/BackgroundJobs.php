@@ -11,12 +11,12 @@ class BackgroundJobs extends Sync
 	protected $title = 'Background Jobs';
 	protected $description = 'Runs jobs scheduled in the background';
 	private static $recurring_jobs = [];
-	
+
 	private static $log_dir = 'logs';
 	private static $log_file = 'background-jobs.log';
-	
+
 	private static $activate = true;
-	
+
 	public function run($request)
 	{
 		if (!$this->Config()->get('activate'))
@@ -33,7 +33,7 @@ class BackgroundJobs extends Sync
 		$this->runNextJob($request);
 		$this->checkRecurringJobs($request);
 	}
-	
+
 	public function killStuckJobs()
 	{
 		$runningJobs = BackgroundJob::get()->Filter('Status', BackgroundJob::STATUS_RUNNING);
@@ -49,17 +49,17 @@ class BackgroundJobs extends Sync
 			}
 		}
 	}
-	
+
 	public function logFilePath()
 	{
 		return Controller::join_links($this->logFileDir(),$this->Config()->get('log_file'));
 	}
-	
+
 	public function logFileDir()
 	{
 		return Controller::join_links(BASE_PATH,$this->Config()->get('log_dir'));
 	}
-	
+
 	public function logFile()
 	{
 		$logDir = $this->logFileDir();
@@ -73,9 +73,9 @@ class BackgroundJobs extends Sync
 		{
 			$logs = file_get_contents($logPath);
 		}
-		return $logs;	
+		return $logs;
 	}
-	
+
 	protected $_statusReport;
 	protected function openStatusReport()
 	{
@@ -85,7 +85,7 @@ class BackgroundJobs extends Sync
 		}
 		return $this->_statusReport;
 	}
-	
+
 	protected function reportJob($message)
 	{
 		$this->message($message);
@@ -98,7 +98,7 @@ class BackgroundJobs extends Sync
 		file_put_contents($this->logFilePath(), $this->_statusReport);
 		return $this->_statusReport;
 	}
-	
+
 	protected function closeStatusReport()
 	{
 		if (!is_null($this->_statusReport))
@@ -115,7 +115,7 @@ class BackgroundJobs extends Sync
 			file_put_contents($this->logFilePath(), $this->_statusReport);
 		}
 	}
-	
+
 	public function forceJobRun($request)
 	{
 		$this->reportJob('Forcing Background Job');
@@ -129,7 +129,7 @@ class BackgroundJobs extends Sync
 		}
 		$this->message('Complete');
 	}
-	
+
 	public function runNextJob($request)
 	{
 		$endTime = strtotime('+3 minute');
@@ -142,21 +142,24 @@ class BackgroundJobs extends Sync
 		$this->reportJob($jobs->Count().' Jobs Scheduled');
 		foreach($jobs as $job)
 		{
-			$this->runJob($job);
-			sleep(3);
-			if (strtotime('now') > $endTime)
+			if ($job->Status == BackgroundJob::STATUS_OPEN)
 			{
-				$this->reportJob('Times up');
-				break;
+				$this->runJob($job);
+				sleep(3);
+				if (strtotime('now') > $endTime)
+				{
+					$this->reportJob('Times up');
+					break;
+				}
 			}
 		}
 		$this->reportJob('Complete');
 		$this->closeStatusReport();
 	}
-	
+
 	protected function runJob($job)
 	{
-		$this->reportJob('Running Job: '.$job->getTitle());
+		$this->reportJob('Running Job ['.$job->ID.']: '.$job->getTitle());
 		try {
 			$job->Run();
 		} catch (\Exception $e) {
@@ -169,7 +172,7 @@ class BackgroundJobs extends Sync
 		}
 		return $job;
 	}
-	
+
 	public function checkRecurringJobs($request)
 	{
 		$recurringJobs = $this->Config()->get('recurring_jobs');
@@ -235,7 +238,7 @@ class BackgroundJobs extends Sync
 			}
 		}
 	}
-	
+
 	public function setupCleaner()
 	{
 		if (BackgroundJob::get()->Filter(['CallClass' => static::class, 'CallMethod' => 'clean', 'Status' => [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING]])->Count())
@@ -248,7 +251,7 @@ class BackgroundJobs extends Sync
 			BackgroundJob::CreateJob(static::class, 'clean');
 		}
 	}
-	
+
 	public function clean()
 	{
 		foreach(BackgroundJob::get()->Exclude('Status', [BackgroundJob::STATUS_OPEN, BackgroundJob::STATUS_RUNNING])->Filter('CompleteDate:LessThan', date('Y-m-d H:i:s', strtotime('-7 days'))) as $oldJob)

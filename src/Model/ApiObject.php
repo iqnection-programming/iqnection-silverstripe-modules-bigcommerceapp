@@ -20,38 +20,38 @@ class ApiObject extends DataExtension
 		'NeedsSync' => 'Boolean',
 		'LastSynced' => 'Datetime'
 	];
-	
+
 	private static $defaults = [
 		'Active' => true
 	];
-	
+
 	private static $indexes = [
 		'BigID' => true,
 		'Title' => true
 	];
-	
+
 	private static $readonly_fields = [
 		'BigID',
 //		'Title'
 	];
-	
+
 	private static $remove_fields = [
 		'RawData',
 		'NeedsSync',
 		'LastSynced'
 	];
-	
+
 	private static $entity_class;
-	
+
 	private static $frontend_required_fields = [];
-	
+
 	public function updateCMSFields($fields)
 	{
 		if ($removeFields = $this->owner->Config()->get('remove_fields'))
 		{
 			$fields->removeByName($removeFields);
 		}
-		
+
 		foreach($this->owner->Config()->get('readonly_fields') as $fieldName)
 		{
 			if ($field = $fields->dataFieldByName($fieldName))
@@ -64,7 +64,7 @@ class ApiObject extends DataExtension
 			$fields->addFieldToTab('Root.RawData', \IQnection\Forms\RawDataField::create('RawData',$this->owner->RawData));
 		}
 	}
-		
+
 	public function updateFrontEndFields($fields)
 	{
 		if ($removeFields = $this->owner->Config()->get('remove_fields'))
@@ -98,7 +98,7 @@ class ApiObject extends DataExtension
 				->addExtraClass('border-0') );
 		}
 	}
-	
+
 	public function getFrontEndRequiredFields(Forms\FieldList $fields)
 	{
 		$requiredFields = [];
@@ -114,7 +114,7 @@ class ApiObject extends DataExtension
 		$this->owner->extend('updateFrontEndRequiredFields', $requiredFields);
 		return $requiredFields;
 	}
-		
+
 	public function RawApiData()
 	{
 		if ($data = json_decode($this->owner->RawData))
@@ -122,12 +122,12 @@ class ApiObject extends DataExtension
 			return ArrayData::create($data);
 		}
 	}
-	
+
 	public function debugRawData()
 	{
 		return print_r(json_decode($this->owner->RawData),1);
 	}
-	
+
 	/**
 	 * BigCommerce Model method to remove the object from BigCommerce, but not from our local database
 	 */
@@ -138,7 +138,7 @@ class ApiObject extends DataExtension
 			$entity->delete();
 		}
 	}
-	
+
 	public function ApiClient()
 	{
 		if ($inst = $this->owner->Entity())
@@ -146,13 +146,13 @@ class ApiObject extends DataExtension
 			return $inst->ApiClient();
 		}
 	}
-	
+
 	public function loadApiData($data)
 	{
 		$this->owner->invokeWithExtensions('updateLoadApiData',$data);
 		return $this->owner;
 	}
-	
+
 	public function updateLoadApiData($data)
 	{
 		if ( (is_object($data)) && (method_exists($data,'toMap')) )
@@ -163,8 +163,8 @@ class ApiObject extends DataExtension
 		$this->owner->LastSynced = date('Y-m-d H:i:s');
 		$this->owner->NeedsSync = false;
 	}
-	
-	public function Sync() 
+
+	public function Sync()
 	{
 		$Entity = $this->owner->Entity();
 		$this->owner->invokeWithExtensions('onBeforeSync', $Entity);
@@ -176,18 +176,19 @@ class ApiObject extends DataExtension
 		$this->owner->write();
 		return $Entity;
 	}
-	
+
 	public function QueueSync()
 	{
-		BackgroundJob::CreateJob($this->owner->getClassName(), 'Sync', ['ID' => $this->owner->ID], 'QueuedSync');
+		$name = 'QueuedSync: '.$this->owner->singular_name().' ['.$this->owner->ID.']';
+		BackgroundJob::CreateJob($this->owner->getClassName(), 'Sync', ['ID' => $this->owner->ID], $name);
 		return $this;
 	}
-	
+
 	public function Pull()
 	{
 		user_error('The method Pull is not implemented on '.static::class);
 	}
-	
+
 	public function NewEntity()
 	{
 		if ($class = $this->owner->Config()->get('entity_class'))
@@ -195,7 +196,7 @@ class ApiObject extends DataExtension
 			return Injector::inst()->create($class, []);
 		}
 	}
-	
+
 	public function Entity()
 	{
 		if ($class = $this->owner->Config()->get('entity_class'))
@@ -208,14 +209,14 @@ class ApiObject extends DataExtension
 		}
 		return $this->owner->_entity;
 	}
-	
+
 	public function RelatedObjects()
 	{
 		$relations = ArrayList::create();
 		$this->owner->invokeWithExtensions('updateRelatedObjects', $relations);
 		return $relations;
 	}
-	
+
 	public function StripImageVersions($html)
 	{
 		return preg_replace('/(img[^>]+src=[\'\"][^\'\"\?]+)\?.*?([\'\"])/','$1$2',$html);

@@ -12,29 +12,30 @@ class BackgroundJob extends DataObject
 	const STATUS_RUNNING = 'running';
 	const STATUS_COMPLETE = 'complete';
 	const STATUS_FAILED = 'failed';
-	
+	const STATUS_CANCELLED = 'cancelled';
+
 	private static $table_name = 'BCBackgroundJob';
-	
+
 	private static $db = [
 		'Name' => 'Varchar(255)',
 		'CallClass' => 'Varchar(255)',
 		'CallMethod' => 'Varchar(255)',
 		'Args' => 'Text',
-		'Status' => "Enum('open,running,complete,failed','open')",
+		'Status' => "Enum('open,running,complete,failed,cancelled','open')",
 		'CompleteDate' => 'Datetime',
 		'Hash' => 'Varchar(255)',
 		'Logs' => 'Text'
 	];
-	
+
 	private static $defaults = [
 		'Status' => 'open'
 	];
-	
+
 	public function getTitle()
 	{
 		return $this->CallClass.'::'.$this->CallMethod;
 	}
-	
+
 	public function StatusDisplay()
 	{
 		switch($this->Status)
@@ -43,11 +44,13 @@ class BackgroundJob extends DataObject
 				return 'Pending';
 			case  self::STATUS_RUNNING:
 				return 'Running';
+			case  self::STATUS_CANCELLED:
+				return 'Cancelled';
 			case self::STATUS_COMPLETE:
 				return 'Last Synced: '.$this->dbObject('CompleteDate')->Nice();
 		}
 	}
-	
+
 	public static function CreateJob($class, $method, $args = [], $name = null, $hash = null)
 	{
 		if (!$hash)
@@ -57,7 +60,7 @@ class BackgroundJob extends DataObject
 		if ($existing = self::get()->Filter(['Hash' => $hash, 'Status' => ['open','running']])->First())
 		{
 			// make sure the job isn't stuck, give it a one hour buffer
-			if (strtotime($existing->LastEdited) > strtotime('-1 hour')) 
+			if (strtotime($existing->LastEdited) > strtotime('-1 hour'))
 			{
 				return $existing;
 			}
@@ -74,7 +77,7 @@ class BackgroundJob extends DataObject
 		$job->write();
 		return $job;
 	}
-	
+
 	public function Run()
 	{
 		$this->Status = self::STATUS_RUNNING;
@@ -100,7 +103,7 @@ class BackgroundJob extends DataObject
 			{
 				throw new \Exception('Method '.$this->CallMethod.' does not exist in class '.$className,500);
 			}
-			
+
 			ob_start();
 			$result = call_user_func_array([$inst, $this->CallMethod], [$args]);
 			$this->Status = self::STATUS_COMPLETE;
@@ -111,6 +114,10 @@ class BackgroundJob extends DataObject
 		$this->CompleteDate = date('Y-m-d H:i:s');
 		$this->Logs .= "\nOutput:\n".ob_get_contents();
 		ob_end_clean();
+		if ( (defined('OUTPUT_JOB_LOG')) && (OUTPUT_JOB_LOG) )
+		{
+			print "\n-----------------Logs:\n".$this->Logs."\n-------------------\n";
+		}
 		$this->write();
 		if ((isset($e)) && ($e instanceof \Exception))
 		{
@@ -118,17 +125,17 @@ class BackgroundJob extends DataObject
 		}
 		return $this;
 	}
-	
+
 	public static function RunJob($job)
 	{
 		return $job->Run();
 	}
-	
+
 	public static function NextJob()
 	{
 		return BackgroundJob::get()->Filter('Status', self::STATUS_OPEN)->Sort('Created','ASC')->First();
 	}
-	
+
 	public static function getOpen()
 	{
 		return BackgroundJob::get()->Filter('Status', self::STATUS_OPEN)->Sort('Created','ASC');

@@ -39,7 +39,7 @@ class SyncProducts extends Sync
 		$updated = 0;
 		$created = 0;
 		$removed = 0;
-		$page = (($request) && ($request->requestVar('page'))) ? $request->requestVar('page') : 1;
+		$page = (($request instanceof HTTPRequest) && ($request->requestVar('page'))) ? $request->requestVar('page') : 1;
 		$bcProducts = $this->getBcProducts($page,200);
 		$this->message(count($bcProducts).' Products Received');
 		$count = count($bcProducts);
@@ -76,7 +76,7 @@ class SyncProducts extends Sync
 		}
 		$this->message($updated+$created+$removed.' Products Synced');
 		sleep(3);
-		if ((!$request) || (!$request->requestVar('page')))
+		if (($request instanceof HTTPRequest) || (!$request->requestVar('page')))
 		{
 			// remove left over products
 			$removeProducts = Product::get();

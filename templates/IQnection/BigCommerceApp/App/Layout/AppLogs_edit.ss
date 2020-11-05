@@ -31,20 +31,20 @@
 		<div><strong>Status: </strong>$currentRecord.Status</div>
 	</div>
 </div>
-	
+
 <div class="card">
 	<h5 class="card-header">Arguments</h5>
 	<div class="card-body">
-		<div><pre class="m-0 p-2"><xmp class="m-0">$currentRecord.Args</xmp></pre></div>
+		<div><pre class="m-0 p-2"><xmp class="m-0">$currentRecord.Args.RAW</xmp></pre></div>
 	</div>
 </div>
-	
+
 <div class="card">
 	<h5 class="card-header">Logs</h5>
 	<div class="card-body">
 		<pre class="m-0 p-2">
 			<xmp class="m-0">
-				$currentRecord.Logs
+				$currentRecord.Logs.RAW
 			</xmp>
 		</pre>
 	</div>

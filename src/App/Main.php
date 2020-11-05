@@ -32,15 +32,15 @@ use SilverStripe\Control\HTTPResponse;
 class Main extends Controller
 {
 	const SKIP_SYNC_SESSION_VAR = 'skip-next-sync';
-	
+
 	private static $url_segment = '_bc';
 	private static $managed_class;
 	private static $page_title = 'Dashboard';
-	
+
 	private static $extensions = [
 		\IQnection\BigCommerceApp\Extensions\DashboardTheme::class
 	];
-	
+
 	private static $allowed_actions = [
 		'ping',
 		'index',
@@ -61,14 +61,14 @@ class Main extends Controller
 		'dismissnotifications',
 		'apidata' => 'ADMIN'
 	];
-	
+
 	private static $public_actions = [
 		'load',
 		'uninstall',
 		'installerror',
 		'ping'
 	];
-	
+
 	private static $url_handlers = [
 		'notification//$subAction!/$ID!' => 'updateNotification',
 		'edit/$ID/relation/$ComponentName!/$RelatedID!/subrelation/$SubcomponentName!/$SubrelatedID' => 'subrelation',
@@ -90,14 +90,14 @@ class Main extends Controller
 		'Logs' => AppLogs::class,
 		'Webhooks' => Webhooks::class
 	];
-	
+
 	private static $nav_links = [
 		'Home' => [
 			'path' => '',
 			'icon' => 'home'
 		]
 	];
-	
+
 	public function pull()
 	{
 		$record = $this->currentRecord();
@@ -114,14 +114,14 @@ class Main extends Controller
 		}
 		return $this->redirect($this->Link('edit/'.$record->ID));
 	}
-	
+
 	public function apidata()
 	{
 		print "<pre><xmp>";
 		if ($relation = $this->relatedObject())
 		{
 			print "-----API Data\n";
-			print_r($relation->ApiData()); 
+			print_r($relation->ApiData());
 		}
 		elseif ($record = $this->currentRecord())
 		{
@@ -136,17 +136,17 @@ class Main extends Controller
 			}
 			print "\n\n-----Import Data\n";
 			print_r(json_decode($record->ImportData));
-			
+
 		}
 		print '</xmp></pre>';
 		die();
 	}
-		
+
 	public function ping()
 	{
 		return (bool) (Security::getCurrentUser());
 	}
-	
+
 	public function init()
 	{
 		parent::init();
@@ -207,10 +207,10 @@ $('[data-editor="tinyMCE"]').each(function(){
 	tinymce.init(config);
 });
 JS
-		);	
-	
+		);
+
 	}
-	
+
 	/**
 	 * common method/action for searching resources
 	 * expects params to pass as follows:
@@ -239,7 +239,7 @@ JS
 			}
 		}
 	}
-	
+
 	public function searchCategories($search)
 	{
 		$records = Category::get();
@@ -262,7 +262,7 @@ JS
 				$records = $records->Sort($col,$dir);
 			}
 		}
-		
+
 		$finalRecordsTotal = $records->Count();
 		$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
 		$start = 0;
@@ -271,8 +271,8 @@ JS
 			$start = $this->getRequest()->requestVar('start');
 		}
 		$records = $records->Limit($limit,$start);
-		
-		
+
+
 		if (Director::is_ajax())
 		{
 			$ajaxData = [
@@ -302,7 +302,7 @@ JS
 			'Categories' => $records
 		]);
 	}
-	
+
 	public function searchProducts($search)
 	{
 		$products = Product::get();
@@ -326,7 +326,7 @@ JS
 				$products = $products->Sort($col,$dir);
 			}
 		}
-		
+
 		$finalProductsTotal = $products->Count();
 		$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
 		$start = 0;
@@ -335,8 +335,8 @@ JS
 			$start = $this->getRequest()->requestVar('start');
 		}
 		$products = $products->Limit($limit,$start);
-		
-		
+
+
 		if (Director::is_ajax())
 		{
 			$ajaxData = [
@@ -361,12 +361,12 @@ JS
 			print json_encode($ajaxData);
 			die();
 		}
-			
+
 		return $this->Customise([
 			'Products' => $products
 		]);
 	}
-	
+
 	public function Title()
 	{
 		if (!$Title = $this->Config()->get('page_title', Config::UNINHERITED))
@@ -385,7 +385,7 @@ JS
 		}
 		return $Title;
 	}
-	
+
 	public function index()
 	{
 		$notifications = ArrayList::create();
@@ -402,7 +402,7 @@ JS
 				->setPaginationGetVar('viewedStart')
 		]);
 	}
-	
+
 	public function NavLinks()
 	{
 		if (!$links = $this->Config()->get('nav_links',Config::UNINHERITED))
@@ -412,7 +412,7 @@ JS
 		$this->extend('updateNavLinks',$links);
 		return $links;
 	}
-	
+
 	protected function BuildNavChildren($children, $app)
 	{
 		$controller = Controller::curr();
@@ -444,7 +444,7 @@ JS
 		}
 		return $links;
 	}
-	
+
 	public function Menu()
 	{
 		$links = ArrayList::create();
@@ -476,13 +476,13 @@ JS
 		$this->extend('updateMenu',$links);
 		return $links;
 	}
-	
+
 	protected function BootstrapFormFields(&$fields, $inFieldGroup = false)
 	{
 		foreach($fields as $field)
 		{
-			if ($field instanceof FileAttachmentField) 
-			{ 
+			if ($field instanceof FileAttachmentField)
+			{
 				$field->addExtraClass('px-2');
 				continue;
 			}
@@ -536,14 +536,14 @@ JS
 					}
 				}
 			}
-			
+
 			if ($field instanceof Forms\HTMLEditor\HTMLEditorField)
 			{
 				$field->setEditorConfig($bc_config);
 			}
 		}
 	}
-	
+
 	public function BootstrapForm(&$form)
 	{
 		\SilverStripe\Forms\HTMLEditor\HTMLEditorConfig::set_active_identifier('bigcommerce');
@@ -554,8 +554,9 @@ JS
 		{
 			$action->addExtraClass('btn mt-2 mr-2 btn-success');
 		}
+		$form->disableSecurityToken(true);
 	}
-	
+
 	public function dismissnotifications()
 	{
 		foreach(Security::getCurrentUser()->Notifications()->Exclude('Status',Notification::STATUS_DISMISSED) as $notification)
@@ -566,7 +567,7 @@ JS
 		$this->addAlert('All Notifications Dismissed');
 		return $this->redirectBack();
 	}
-	
+
 	public function updateNotification()
 	{
 		$status = $this->getRequest()->param('subAction');
@@ -586,13 +587,13 @@ JS
 		}
 		return $this->redirectBack();
 	}
-	
+
 	public function logout()
 	{
 		Security::setCurrentUser(null);
 		return $this->redirect($this->Link('login'));
 	}
-	
+
 	protected function ajax_response($data,$success = true, $errors = [], $message = null)
 	{
 		if (!$this->getRequest()->isAjax())
@@ -610,7 +611,7 @@ JS
 			->addHeader('Content-Type','application/json')
 			->setBody(json_encode($response));
 	}
-	
+
 	/**
 	 * callback when installing the app to a BigCommerce store
 	 */
@@ -624,7 +625,7 @@ JS
 //		}
 //		if (!$member = Security::getCurrentUser())
 //		{
-//			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session. 
+//			$message = 'Before you can install this app, you must open the SilverStripe admin in another tab and have an active login session.
 //			Once this is ready, come back and initiate the install process again.';
 //			return Security::permissionFailure($this, $message);
 //			return $this->Customise(['Content' => $message])->renderWith(['IQnection/BigCommerceApp/App/NoAuth']);
@@ -633,7 +634,7 @@ JS
 //		$code = $this->getRequest()->getVar('code');
 //		$scope = $this->getRequest()->getVar('scope');
 //		$context = $this->getRequest()->getVar('context');
-//		
+//
 //		$client = new \GuzzleHttp\Client();
 //		$postBack = [
 //			'client_id' => Client::Config()->get('client_id'),
@@ -667,12 +668,12 @@ JS
 //		}
 //		return $this->redirect($this->Link('installerror'));
 	}
-	
+
 	public function installerror()
 	{
 //		return $this->Customise(['HideNav' => true]);
 	}
-	
+
 	/**
 	 * Sends a callback to BigCommerce to let their server know if the install was successfull
 	 */
@@ -689,10 +690,10 @@ JS
 //		}
 //		return $this->renderWith(['BigCommerceInstallComplete']);
 	}
-	
+
 	/**
 	 * callback used when uninstalling the app from a BigCommerce store
-	 */	
+	 */
 	public function uninstall()
 	{
 //		$siteconfig = SiteConfig::current_site_congfig();
@@ -700,14 +701,14 @@ JS
 //		$siteconfig->write();
 //		return $this->redirect($this->Link());
 	}
-	
+
 	/** Inherited Methods for Managing Data **/
 	public function relatedObject()
 	{
 		if (!$record = $this->currentRecord())
 		{
 			user_error('Main Record not found');
-		}	
+		}
 		if (!$record->Exists())
 		{
 			user_error('Main Record must be saved first');
@@ -734,13 +735,13 @@ JS
 		}
 		return $object;
 	}
-	
+
 	public function subRelatedObject()
 	{
 		if (!$relatedObject = $this->relatedObject())
 		{
 			user_error('Related Record not found');
-		}	
+		}
 		if (!$relatedObject->Exists())
 		{
 			user_error('Related Record must be saved first');
@@ -767,7 +768,7 @@ JS
 		}
 		return $object;
 	}
-	
+
 	public function relatedObjectForm()
 	{
 		$relatedObject = $this->relatedObject();
@@ -804,7 +805,7 @@ JS
 				}
 			}
 		}
-		
+
 		$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
 		if ($fields->dataFieldByName('ComponentName'))
 		{
@@ -814,13 +815,13 @@ JS
 		{
 			$fields->push( Forms\HiddenField::create('ComponentName','')->setValue($ComponentName) );
 		}
-		
+
 		if (!$relatedObject->Exists())
 		{
 			$fields->push( Forms\HiddenField::create('type','')->setValue(base64_encode($relatedObject->getClassName())) );
 		}
-		
-		
+
+
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSaveComponent','Save')->addExtraClass('btn-success'),
 			Forms\FormAction::create('doSaveComponent_andReturn','Save and Exit')->addExtraClass('btn-success')
@@ -829,9 +830,9 @@ JS
 		{
 			$actions->push(Forms\FormAction::create('doDeleteComponent','Delete')->addExtraClass('btn-outline-danger ml-2'));
 		}
-		
+
 		$validator = ($relatedObject->hasMethod('getFrontEndRequiredFields')) ? $relatedObject->getFrontEndRequiredFields($fields) : null;
-		
+
 		$form = Forms\Form::create(
 			$this,
 			'relatedObjectForm',
@@ -848,7 +849,7 @@ JS
 		}
 		return $form;
 	}
-	
+
 	public function subRelatedObjectForm()
 	{
 		$record = $this->currentRecord();
@@ -892,7 +893,7 @@ JS
 				$field->addParam('ComponentName',$ComponentName);
 				$field->addParam('SubcomponentName',$SubcomponentName);
 				$field->addParam('RelatedID',$relatedObject->ID);
-				
+
 				if ($subrelatedObject->Exists())
 				{
 					$field->addParam('SubrelatedID',$subrelatedObject->ID);
@@ -921,13 +922,13 @@ JS
 		{
 			$fields->push( Forms\HiddenField::create('SubcomponentName','')->setValue($SubcomponentName) );
 		}
-		
+
 		if (!$subrelatedObject->Exists())
 		{
 			$fields->push( Forms\HiddenField::create('type','')->setValue(base64_encode($subrelatedObject->getClassName())) );
 		}
-		
-		
+
+
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSaveSubcomponent','Save')->addExtraClass('btn-success')
 		);
@@ -935,9 +936,9 @@ JS
 		{
 			$actions->push(Forms\FormAction::create('doDeleteSubcomponent','Delete')->addExtraClass('btn-outline-danger ml-2'));
 		}
-		
+
 		$validator = ($subrelatedObject->hasMethod('getFrontEndRequiredFields')) ? $subrelatedObject->getFrontEndRequiredFields($fields) : null;
-		
+
 		$form = Forms\Form::create(
 			$this,
 			'subRelatedObjectForm',
@@ -954,8 +955,8 @@ JS
 		}
 		return $form;
 	}
-	
-	
+
+
 	protected function _saveComponent($data, $form)
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -994,8 +995,8 @@ JS
 				return $this->redirectBack();
 			}
 		}
-		
-		
+
+
 		$record->NeedsSync = true;
 		$record->write();
 		$this->addAlert($component->singular_name().' Saved'.($synced ? ' And Synced':''));
@@ -1005,7 +1006,7 @@ JS
 			'Component' => $component
 		];
 	}
-	
+
 	public function doSaveComponent_andReturn($data, $form)
 	{
 		$result = $this->_saveComponent($data, $form);
@@ -1015,7 +1016,7 @@ JS
 		}
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$result['Record']->ID,'#'.Convert::raw2url($result['ComponentName'])));
 	}
-	
+
 	public function doSaveComponent($data, $form)
 	{
 		$result = $this->_saveComponent($data, $form);
@@ -1025,7 +1026,7 @@ JS
 		}
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$result['Record']->ID,'relation',$result['ComponentName'],$result['Component']->ID));
 	}
-	
+
 	public function doSaveSubcomponent($data, $form)
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1054,7 +1055,7 @@ JS
 		$this->addAlert($subcomponent->singular_name().' Saved');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'relation',$componentName,$component->ID,'#'.Convert::raw2url($SubcomponentName)));
 	}
-	
+
 	public function doDeleteComponent($data,$form)
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1074,7 +1075,7 @@ JS
 		$this->addAlert($component->singular_name().' Removed');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
 	}
-	
+
 	public function doDeleteSubcomponent($data,$form)
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1098,7 +1099,7 @@ JS
 		$this->addAlert($SubcomponentName->singular_name().' Removed');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,$ComponentName,$component->ID,'#'.Convert::raw2url($SubcomponentName)));
 	}
-	
+
 	public function relationremove()
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1142,7 +1143,7 @@ JS
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,'#'.Convert::raw2url($ComponentName)));
 	}
-	
+
 	public function subrelationremove()
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1176,7 +1177,7 @@ JS
 		$SubcomponentName = $this->getRequest()->requestVar('SubcomponentName') ? $this->getRequest()->requestVar('SubcomponentName') : $this->getRequest()->param('SubcomponentName');
 		return $this->redirect(Controller::join_links($this->Link(),'edit',$record->ID,$ComponentName,$component->ID,'#'.Convert::raw2url($ComponentName)));
 	}
-		
+
 	public function relation()
 	{
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
@@ -1184,7 +1185,7 @@ JS
 			'ComponentName' => $ComponentName,
 		]);
 	}
-	
+
 	public function subrelation()
 	{
 		$ComponentName = $this->getRequest()->requestVar('ComponentName') ? $this->getRequest()->requestVar('ComponentName') : $this->getRequest()->param('ComponentName');
@@ -1194,7 +1195,7 @@ JS
 			'SubcomponentName' => $SubcomponentName
 		]);
 	}
-	
+
 	protected $_currentRecord;
 	public function currentRecord()
 	{
@@ -1222,7 +1223,7 @@ JS
 		}
 		return $this->_currentRecord;
 	}
-	
+
 	public function recordForm()
 	{
 		$record = $this->currentRecord();
@@ -1244,7 +1245,7 @@ JS
 		{
 			$fields->push( Forms\HiddenField::create('_ID','')->setValue($record->ID) );
 		}
-		
+
 		$actions = Forms\FieldList::create(
 			Forms\FormAction::create('doSave','Save')
 		);
@@ -1259,9 +1260,9 @@ JS
 //				$actions->push(Forms\FormAction::create('doDelete','Delete')->addExtraClass('btn-danger ml-2'));
 //			}
 //		}
-		
+
 		$validator = $record->getFrontEndRequiredFields($fields);
-		
+
 		$form = Forms\Form::create(
 			$this,
 			'recordForm',
@@ -1273,7 +1274,7 @@ JS
 		$this->BootstrapForm($form);
 		return $form;
 	}
-	
+
 	public function doSave($data,$form)
 	{
 		$record = $this->currentRecord();
@@ -1308,7 +1309,7 @@ JS
 		}
 		return $this->redirectBack();
 	}
-	
+
 	public function doDelete()
 	{
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
@@ -1331,7 +1332,7 @@ JS
 			return $this->redirectBack();
 		}
 	}
-	
+
 	public function doUnlink()
 	{
 		if (!$record = $this->currentRecord())
@@ -1352,7 +1353,7 @@ JS
 		$this->getRequest()->getSession()->set(static::SKIP_SYNC_SESSION_VAR, true);
 		return $this->redirectBack();
 	}
-	
+
 	public function sort_items()
 	{
 		$component = $this->getRequest()->requestVar('ComponentName');

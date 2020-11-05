@@ -12,8 +12,8 @@ class Listener extends Controller
 	private static $debug = false;
 	private static $url_segment = '_hook';
 	private static $allowed_actions = [];
-	
-	
+
+
 	/**
 	 * register actions to webhooks
 	 * expects array keys to be the webhook scope
@@ -21,13 +21,13 @@ class Listener extends Controller
 	 * eg. Category::Pull
 	 */
 	private static $registry = [];
-	
+
 	public function init()
 	{
 		parent::init();
 		$this->logHook(json_decode($this->getRequest()->getBody()),'Body');
 	}
-		
+
 	public function index()
 	{
 		if (!$body = json_decode($this->getRequest()->getBody()))
@@ -45,7 +45,7 @@ class Listener extends Controller
 		$jobHash = md5(json_encode([$scope, $data]));
 		$id = isset($body->data->id) ? $body->data->id : null;
 		// create a non-unique name so this job doesn't get replicated if there's one pending
-		$jobName = $body->store_id.'|'.$scope.'|'.$id;
+		$jobName = $body->store_id.'|'.preg_replace('/\//','_',$scope).'|'.$id;
 		$body = [
 			'BigID' => $id,
 			'body' => $body
@@ -72,17 +72,17 @@ class Listener extends Controller
 		}
 		return $this->getResponse()->setBody(true);
 	}
-	
+
 	public function Link($action = null)
 	{
 		return Controller::join_links($this->Config()->get('url_segment'),$action);
 	}
-	
+
 	public function AbsoluteLink($action = null)
 	{
 		return Director::absoluteURL($this->Link($action));
 	}
-	
+
 	protected function logHook($data, $title = null)
 	{
 		if ($this->Config()->get('debug'))
@@ -98,7 +98,7 @@ class Listener extends Controller
 		}
 		return $this;
 	}
-	
+
 	protected function validateHook($body)
 	{
 		if (is_string($body))
@@ -110,7 +110,7 @@ class Listener extends Controller
 			$body = (array) $body;
 		}
 		return ( (WebhookEntity::Config()->get('app_id') == $body['headers']['app_id']) || (WebhookEntity::Config()->get('app_id') == $body['headers']['app-id']) );
-	}	
+	}
 }
 
 

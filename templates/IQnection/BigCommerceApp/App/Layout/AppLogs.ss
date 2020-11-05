@@ -21,18 +21,23 @@
     <div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
         <div class="card">
             <div class="card-body">
-				<form method="GET" class="form-inline">
-					<div class="form-group mr-2">
-						<select name="Filters[Status]" class="form-control">
-							<option value="All">All</option>
-							<option value="open"<% if $Filters.Status == 'open' %> selected<% end_if %>>Open</option>
-							<option value="running"<% if $Filters.Status == 'running' %> selected<% end_if %>>Running</option>
-							<option value="failed"<% if $Filters.Status == 'failed' %> selected<% end_if %>>Failed</option>
-							<option value="complete"<% if $Filters.Status == 'complete' %> selected<% end_if %>>Completed</option>
-						</select>
+				<div class="mb-2 d-flex justify-content-between align-items-end">
+					<div>
+						<form method="GET" class="form-inline">
+							<div class="form-group mr-2">
+								<select name="Filters[Status]" class="form-control">
+									<option value="All">All</option>
+									<option value="open"<% if $Filters.Status == 'open' %> selected<% end_if %>>Open</option>
+									<option value="running"<% if $Filters.Status == 'running' %> selected<% end_if %>>Running</option>
+									<option value="failed"<% if $Filters.Status == 'failed' %> selected<% end_if %>>Failed</option>
+									<option value="complete"<% if $Filters.Status == 'complete' %> selected<% end_if %>>Completed</option>
+								</select>
+							</div>
+							<button type="submit" class="btn btn-outline">Search</button>
+						</form>
 					</div>
-					<button type="submit" class="btn btn-outline">Search</button>
-				</form>
+					<div>Showing $Logs.PageLength of $Logs.getTotalItems results, Starting at $Logs.getPageStart</div>
+				</div>
                 <div class="table-responsive">
                     <table class="table table-striped table-bordered first">
                         <thead>
@@ -49,7 +54,7 @@
                         <tbody>
                             <% loop $Logs %>
                               <tr>
-								  <td>$Pos</td>
+								  <td>$Pos($Top.Logs.getPageStart)</td>
 								  <td>$ID</td>
                                   <td>$Name</td>
                                   <td>$Created</td>
@@ -68,4 +73,3 @@
       </div>
   </div>
 </div>
-              

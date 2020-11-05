@@ -20,10 +20,10 @@ class SyncWidgets extends Sync
 	public function run($request)
 	{
 		$this->checkCli();
-		$this->_syncWidgets();
+		$this->_syncWidgets($request);
 	}
-	
-	public function _syncWidgets()
+
+	public function _syncWidgets($request)
 	{
 		$this->message('Syncing Records from BigCommerce');
 		$bcEntity = Widget::singleton()->Entity();
