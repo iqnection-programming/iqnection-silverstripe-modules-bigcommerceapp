@@ -71,8 +71,8 @@ class CategoryEntity extends Entity
 		}
 		return $cachedData;
 	}
-	
-	public static function getById($id)
+
+	public static function getById($id, $params = [], $refresh = false)
 	{
 		if ($id)
 		{
@@ -82,7 +82,7 @@ class CategoryEntity extends Entity
 			{
 				$inst = Injector::inst()->create(static::class, []);
 				$apiClient = $inst->ApiClient();
-				$apiResponse = $apiClient->getCategoryById($id);
+				$apiResponse = $apiClient->getCategoryById($id, $params);
 				$inst->loadApiData($apiResponse->getData());
 				$cachedData = $inst;
 				self::toCache($cacheName, $inst);

@@ -179,8 +179,7 @@ class ApiObject extends DataExtension
 
 	public function QueueSync()
 	{
-		$name = 'QueuedSync: '.$this->owner->singular_name().' ['.$this->owner->ID.']';
-		BackgroundJob::CreateJob($this->owner->getClassName(), 'Sync', ['ID' => $this->owner->ID], $name);
+		BackgroundJob::CreateJob($this->owner->getClassName(), 'Sync', ['ID' => $this->owner->ID], 'QueuedSync [BigID:'.$this->owner->BigID.'|ID:'.$this->owner->ID.']');
 		return $this;
 	}
 

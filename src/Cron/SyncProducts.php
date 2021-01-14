@@ -53,13 +53,16 @@ class SyncProducts extends Sync
 				$status = 'Updating';
 				if (!$product = Product::get()->Find('BigID', $bcProduct->id))
 				{
-					$created++;
-					$status = 'Creating';
-					// create the new product
-					$product = Product::create();
+					if (!$product = Product::get()->Find('Title', $bcProduct->name))
+					{
+						$created++;
+						$status = 'Creating';
+						// create the new product
+						$product = Product::create();
+					}
 					$product->BigID = $bcProduct->id;
 				}
-				else
+				if ($product->Exists())
 				{
 					$updated++;
 				}
@@ -113,7 +116,7 @@ class SyncProducts extends Sync
 		$filters = [
 			'page' => $page,
 			'limit' => $limit,
-			'include' => 'custom_fields'
+			'include' => 'custom_fields,images'
 		];
 		$this->message('Retrieving '.$filters['limit'].' Products on Page: '.$filters['page']);
 		$apiResponse = $apiClient->getProducts($filters);

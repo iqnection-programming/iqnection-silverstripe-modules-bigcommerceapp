@@ -35,35 +35,20 @@
 				<table class="table table-striped table-bordered" data-src="{$AbsoluteLink}/search" id="product-list">
 					<thead>
 						<tr>
-<%--							<th>ID</th>--%>
-<%--							<th>BC ID</th>--%>
+							<th>&nbsp;</th>
 							<th>Name</th>
 							<th>SKU</th>
-<%--							<th>Created</th>--%>
 							<th class="text-right">&nbsp;</th>
 						</tr>
 					</thead>
 					<tbody>
-						<%-- loop $Products.Limit(100) %>
-							<tr>
-								<td>$ID</td>
-								<td>$BigID</td>
-								<td>$Title</td>
-								<td>$Created.Nice</td>
-								<td class="text-right">
-									<a href="$Top.Link(edit)/$ID" class="btn btn-primary btn-sm">Edit</a>
-									<a href="$Top.Link(resync)/$ID" class="btn btn-outline-success btn-sm">Resync</a>
-								</td>
-							</tr>
-						<% end_loop --%>
+
 					</tbody>
 					<tfoot>
 						<tr>
-<%--							<th>ID</th>--%>
-<%--							<th>BC ID</th>--%>
+							<th>&nbsp;</th>
 							<th>Name</th>
 							<th>SKU</th>
-<%--							<th>Created</th>--%>
 							<th class="text-right">&nbsp;</th>
 						</tr>
 					</tfoot>

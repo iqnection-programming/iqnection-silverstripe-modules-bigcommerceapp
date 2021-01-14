@@ -118,6 +118,7 @@ class BackgroundJobs extends Sync
 
 	public function forceJobRun($request)
 	{
+		define('BACKGROUND_JOBS_VERBOSE', true);
 		$this->reportJob('Forcing Background Job');
 		if ($id = $request->getVar('id'))
 		{
@@ -130,28 +131,37 @@ class BackgroundJobs extends Sync
 		$this->message('Complete');
 	}
 
+	protected $endTime;
 	public function runNextJob($request)
 	{
-		$endTime = strtotime('+3 minute');
+		if (is_null($this->endTime))
+		{
+			$this->endTime = strtotime('+3 minute');
+		}
 		$this->reportJob('Running Background Job');
 		$jobs = BackgroundJob::getOpen();
 		if ($id = $request->getVar('id'))
 		{
 			$jobs = $jobs->Filter('ID',$id);
 		}
-		$this->reportJob($jobs->Count().' Jobs Scheduled');
+		$jobCount = $jobs->Count();
+		$this->reportJob($jobCount.' Jobs Scheduled');
 		foreach($jobs as $job)
 		{
-			if ($job->Status == BackgroundJob::STATUS_OPEN)
+			$this->runJob($job);
+			sleep(3);
+			if (strtotime('now') > $this->endTime)
 			{
-				$this->runJob($job);
-				sleep(3);
-				if (strtotime('now') > $endTime)
-				{
-					$this->reportJob('Times up');
-					break;
-				}
+				$this->reportJob('Times up');
+				break;
 			}
+		}
+		// were jobs run, and do we still have time
+		if ( ($jobCount) && (strtotime('now') < $this->endTime) )
+		{
+			// if any new jobs were created, run them now
+			$this->runNextJob($request);
+			return;
 		}
 		$this->reportJob('Complete');
 		$this->closeStatusReport();
@@ -159,7 +169,7 @@ class BackgroundJobs extends Sync
 
 	protected function runJob($job)
 	{
-		$this->reportJob('Running Job ['.$job->ID.']: '.$job->getTitle());
+		$this->reportJob('Running Job: '.$job->getTitle());
 		try {
 			$job->Run();
 		} catch (\Exception $e) {

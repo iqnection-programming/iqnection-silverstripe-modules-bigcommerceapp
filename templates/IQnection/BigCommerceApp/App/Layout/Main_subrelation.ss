@@ -5,7 +5,7 @@
 <div class="row">
 	<div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
 		<div class="page-header">
-			<h2 class="pageheader-title">$ModuleName</h2>
+			<h2 class="pageheader-title">$Title</h2>
 			<div class="page-breadcrumb">
 				<nav aria-label="breadcrumb">
 					<ol class="breadcrumb">
@@ -25,7 +25,7 @@
 <!-- ============================================================== -->
 
 <div class="card">
-	<h5 class="card-header"><% if $subrelatedObject.Exists %>Edit<% else %>Add<% end_if %> {$subrelatedObject.singular_name} <a href="$join_links($Link,edit,$currentRecord.ID,$ComponentName,$relatedObject.ID)" class="btn btn-danger btn-sm float-right" role="button">Cancel</a></h5>
+	<h5 class="card-header"><% if $subrelatedObject.Exists %>Edit<% else %>Add<% end_if %> {$subrelatedObject.singular_name} <a href="$join_links($Link,edit,$currentRecord.ID,relation,$ComponentName,$relatedObject.ID)" class="btn btn-danger btn-sm float-right" role="button">Cancel</a></h5>
 	<div class="card-body">
 		$SubRelatedObjectForm
 	</div>

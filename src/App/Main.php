@@ -347,11 +347,20 @@ JS
 			];
 			foreach($products as $product)
 			{
+				$thumbnail = null;
+				if ($rawApiData = $product->RawApiData())
+				{
+					if ( (is_array($rawApiData->images)) && (count($rawApiData->images)) )
+					{
+						$thumbnail = '<img src="'.$rawApiData->images[0]->url_tiny.'" />';
+					}
+				}
 				$ajaxData['data'][] = [
 					'ID' => $product->ID,
 					'BigID' => $product->BigID,
 					'Title' => $product->Title,
 					'SKU' => $product->sku,
+					'Thumbnail' => $thumbnail,
 					'Created' => $product->dbObject('Created')->Nice(),
 					'Actions' => null,
 					'DropdownText' => $product->Title
@@ -513,6 +522,8 @@ JS
 					if ($field->hasClass('sortable-checkbox-set'))
 					{
 						$field->removeExtraClass('sortable-checkbox-set');
+						$field->removeExtraClass('d-inline-block');
+						$field->addExtraClass('d-block');
 						$field->setFieldHolderTemplate('SilverStripe/Forms/SortableCheckboxSet');
 					}
 					if ($field->hasClass('switch-button'))
@@ -888,7 +899,7 @@ JS
 		{
 			if ($field instanceof FileAttachmentField)
 			{
-				$field->addParam('_ID',$relatedObject->ID);
+				$field->addParam('_ID',$record->ID);
 				$field->addParam('_ParentID',$relatedObject->ID);
 				$field->addParam('ComponentName',$ComponentName);
 				$field->addParam('SubcomponentName',$SubcomponentName);

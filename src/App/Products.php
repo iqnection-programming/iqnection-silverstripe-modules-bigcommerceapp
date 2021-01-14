@@ -50,6 +50,7 @@ $(document).ready(function(){
 		"deferRender": true,
 		"searchDelay": 750,
 		"columns": [
+			{ "data": "Thumbnail", "searchable": false },
 //			{ "data": "ID", "searchable": false },
 //			{ "data": "BigID" },
 			{ "data": "Title" },

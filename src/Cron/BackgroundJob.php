@@ -82,6 +82,10 @@ class BackgroundJob extends DataObject
 	{
 		$this->Status = self::STATUS_RUNNING;
 		$this->write();
+		if ( (!defined('BACKGROUND_JOBS_VERBOSE')) || (!BACKGROUND_JOBS_VERBOSE) )
+		{
+			ob_start();
+		}
 		try {
 			// no methods should be static, create an instance of the class
 			$className = ClassInfo::class_name($this->CallClass);
@@ -103,8 +107,6 @@ class BackgroundJob extends DataObject
 			{
 				throw new \Exception('Method '.$this->CallMethod.' does not exist in class '.$className,500);
 			}
-
-			ob_start();
 			$result = call_user_func_array([$inst, $this->CallMethod], [$args]);
 			$this->Status = self::STATUS_COMPLETE;
 		} catch (\Exception $e) {
@@ -112,13 +114,21 @@ class BackgroundJob extends DataObject
 			$this->Status = self::STATUS_FAILED;
 		}
 		$this->CompleteDate = date('Y-m-d H:i:s');
-		$this->Logs .= "\nOutput:\n".ob_get_contents();
-		ob_end_clean();
-		if ( (defined('OUTPUT_JOB_LOG')) && (OUTPUT_JOB_LOG) )
+		if ( (!defined('BACKGROUND_JOBS_VERBOSE')) || (!BACKGROUND_JOBS_VERBOSE) )
 		{
-			print "\n-----------------Logs:\n".$this->Logs."\n-------------------\n";
+			$this->Logs .= "\nOutput:\n".ob_get_contents();
+			ob_end_clean();
 		}
 		$this->write();
+		if (($this->Status == self::STATUS_COMPLETE) && ($this->Name))
+		{
+			// mark any duplicate jobs as cancelled
+			foreach(BackgroundJob::get()->Filter(['Name' => $this->Name, 'Status' => self::STATUS_OPEN]) as $dupJob)
+			{
+				$dupJob->Status == self::STATUS_CANCELLED;
+				$dupJob->write();
+			}
+		}
 		if ((isset($e)) && ($e instanceof \Exception))
 		{
 			throw $e;

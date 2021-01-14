@@ -12,7 +12,7 @@
 						<li class="breadcrumb-item"><a href="$Dashboard.Link" class="breadcrumb-link">Dashboard</a></li>
 						<li class="breadcrumb-item"><a href="$Link" class="breadcrumb-link">Categories</a></li>
 						<li class="breadcrumb-item"><a href="$join_links($Link,edit,$currentRecord.ID)" class="breadcrumb-link">$currentRecord.Title</a></li>
-						<li class="breadcrumb-item active"><a href="$join_links($Link,edit,$currentRecord.ID,$ComponentName,$relatedObject.ID)" class="breadcrumb-link">{$relatedObject.singular_name}</a></li>
+						<li class="breadcrumb-item active"><a href="$join_links($Link,edit,$currentRecord.ID,relation,$ComponentName,$relatedObject.ID)" class="breadcrumb-link">{$relatedObject.singular_name}</a></li>
 						<li class="breadcrumb-item active"><a href="javascript:;" class="breadcrumb-link">{$subRelatedObject.singular_name}</a></li>
 					</ol>
 				</nav>
@@ -25,7 +25,7 @@
 <!-- ============================================================== -->
 
 <div class="card">
-	<h5 class="card-header"><% if $subrelatedObject.Exists %>Edit<% else %>Add<% end_if %> {$subrelatedObject.singular_name} <a href="$join_links($Link,edit,$currentRecord.ID,$ComponentName,$relatedObject.ID)" class="btn btn-danger btn-sm float-right" role="button">Cancel</a></h5>
+	<h5 class="card-header"><% if $subrelatedObject.Exists %>Edit<% else %>Add<% end_if %> {$subrelatedObject.singular_name} <a href="$join_links($Link,edit,$currentRecord.ID,relation,$ComponentName,$relatedObject.ID)" class="btn btn-danger btn-sm float-right" role="button">Cancel</a></h5>
 	<div class="card-body">
 		$SubRelatedObjectForm
 	</div>
