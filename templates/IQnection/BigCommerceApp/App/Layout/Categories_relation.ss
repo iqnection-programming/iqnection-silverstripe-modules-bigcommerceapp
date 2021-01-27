@@ -5,12 +5,12 @@
 <div class="row">
 	<div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
 		<div class="page-header">
-			<h2 class="pageheader-title">$ModuleName</h2>
+			<h2 class="pageheader-title">$Title</h2>
 			<div class="page-breadcrumb">
 				<nav aria-label="breadcrumb">
 					<ol class="breadcrumb">
 						<li class="breadcrumb-item"><a href="$Dashboard.Link" class="breadcrumb-link">Dashboard</a></li>
-						<li class="breadcrumb-item"><a href="$Link" class="breadcrumb-link">$ModuleName</a></li>
+						<li class="breadcrumb-item"><a href="$Link" class="breadcrumb-link">Categories</a></li>
 						<li class="breadcrumb-item"><a href="$join_links($Link,edit,$currentRecord.ID)" class="breadcrumb-link">$currentRecord.Title</a></li>
 						<li class="breadcrumb-item active"><a href="javascript:;" class="breadcrumb-link">{$relatedObject.singular_name}</a></li>
 					</ol>

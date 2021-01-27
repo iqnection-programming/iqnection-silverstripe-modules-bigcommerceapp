@@ -129,4 +129,5 @@ class SyncProducts extends Sync
 		}
 		$this->message('Total Products Received: '.$cachedData->Count());
 		return $cachedData;
-	}}
+	}
+}

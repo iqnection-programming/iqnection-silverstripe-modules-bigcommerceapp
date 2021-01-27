@@ -131,15 +131,15 @@ class ProductEntity extends Entity
 			}
 			if (!in_array('custom_fields', $filters))
 			{
-				$filters['include'] = 'custom_fields';
+				$filters['include'][] = 'custom_fields';
 			}
 			if (!in_array('categories', $filters))
 			{
-				$filters['include'] = 'categories';
+				$filters['include'][] = 'categories';
 			}
 			if (!in_array('images', $filters))
 			{
-				$filters['include'] = 'images';
+				$filters['include'][] = 'images';
 			}
 			$apiResponse = $apiClient->getProducts($filters);
 			$responseMeta = $apiResponse->getMeta();
@@ -172,11 +172,11 @@ class ProductEntity extends Entity
 			}
 			if (!in_array('custom_fields', $additionalParams))
 			{
-				$additionalParams['include'] = 'custom_fields';
+				$additionalParams['include'][] = 'custom_fields';
 			}
 			if (!in_array('images', $additionalParams))
 			{
-				$additionalParams['include'] = 'images';
+				$additionalParams['include'][] = 'images';
 			}
 			$cachedData = Injector::inst()->create(static::class, []);
 			$apiClient = $cachedData->ApiClient();
