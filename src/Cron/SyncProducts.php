@@ -79,7 +79,8 @@ class SyncProducts extends Sync
 		}
 		$this->message($updated+$created+$removed.' Products Synced');
 		sleep(3);
-		if (($request instanceof HTTPRequest) || (!$request->requestVar('page')))
+		// if this method was called without specifying a page, than we can assume any remaining products should be removed
+		if (($request instanceof HTTPRequest) && (!$request->requestVar('page')))
 		{
 			// remove left over products
 			$removeProducts = Product::get();

@@ -157,7 +157,9 @@ class Product extends DataObject implements ApiObjectInterface
 	{
 		$Entity = $this->Entity();
 		$Entity = $Entity::getByID($this->BigID, true, ['include' => 'custom_fields']);
+		$this->invokeWithExtensions('onBeforeLoadFromApi', $Entity);
 		$this->loadApiData($Entity);
+		$this->invokeWithExtensions('onAfterLoadFromApi', $Entity);
 		$this->write();
 		return $this;
 	}

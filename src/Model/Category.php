@@ -255,7 +255,7 @@ class Category extends DataObject implements ApiObjectInterface
 		if ($RawApiData = $this->RawApiData())
 		{
 			$link = Controller::join_links(SiteConfig::current_site_config()->BigCommerceStoreUrl,$RawApiData->custom_url->url,$action);
-			$this->extend('updateLink',$link);
+			$this->extend('updateLink',$link, $action);
 			return $link;
 		}
 	}
