@@ -16,7 +16,8 @@
 			$("select[data-ajax-call]").each(function(){
 				select2config = {
 					minimumInputLength: 3,
-					placeholder: 'Search'
+					placeholder: 'Search',
+					allowClear: true
 				};
 				if (($.inArray($(this).data('resource-type'), ['categories','category']) > -1) && (window._categories !== undefined)) {
 					select2config.data = window._categories;
@@ -49,7 +50,7 @@
 							return q;
 						}
 					};
-					select2config.processResults = function(data) {
+					select2config.ajax.processResults = function(data) {
 						data = data.data;
 						var results = [];
 						var id, text, e = $(this.$element);

@@ -1,6 +1,9 @@
 ## Package: iqnection-silverstripe-modules-bigcommerceapp
 # Change Log
 
+# 1.0.0
+- Stable Release
+
 # 0.1.0
 - beta release
 

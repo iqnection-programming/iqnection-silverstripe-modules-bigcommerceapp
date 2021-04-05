@@ -151,22 +151,25 @@ class DashboardTheme extends Extension
 				if ($themeResource = ThemeResourceLoader::inst()->findThemedResource($cssFile.$ext))
 				{
 					$CssFiles[$this->package_name.':'.$cssFile] = $themeResource;
+					Requirements::css($themeResource);
 				}
 				// no override, find teh package file path and include it
 				elseif ($packageResource->exists())
 				{
 					$CssFiles[$this->package_name.':'.$cssFile] = $packageResource->getRelativePath();
+					Requirements::css($packageResource->getRelativePath());
 				}
 				// see if our theme has a stylesheet extension to include along with the package stylesheet
 				if ($themeResourceExtension = ThemeResourceLoader::inst()->findThemedResource($cssFile.'_extension'.$ext))
 				{
 					$CssFiles[$cssFile.'_extension'] = $themeResourceExtension;
+					Requirements::css($themeResourceExtension);
 				}
 			}
 		}
 		if (count($CssFiles))
 		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles);
+//			Requirements::combine_files('dashboard-'.md5(json_encode($CssFiles)).'.css', $CssFiles);
 		}
 	}
 	
@@ -212,10 +215,14 @@ class DashboardTheme extends Extension
 			}
 		}
 
-		if (count($JsFiles))
+		foreach($JsFiles as $jsFile)
 		{
-			Requirements::combine_files('dashboard-'.md5(json_encode($JsFiles)).'.js', $JsFiles);	
+			Requirements::javascript($jsFile);
 		}
+//		if (count($JsFiles))
+//		{
+//			Requirements::combine_files('dashboard-'.md5(json_encode($JsFiles)).'.js', $JsFiles);	
+//		}
 	}
 	
 	public function loadThemePackage($packageName)

@@ -2,32 +2,33 @@
 
 namespace IQnection\BigCommerceApp\App;
 
-use SilverStripe\Control\Controller;
 use IQnection\BigCommerceApp\Client;
-use SilverStripe\SiteConfig\SiteConfig;
 use IQnection\BigCommerceApp\Model\BigCommerceLog as BCLog;
-use IQnection\BigCommerceApp\Model\Notification;
-use SilverStripe\Security\Member;
-use SilverStripe\Security\Security;
-use SilverStripe\Security\MemberAuthenticator\MemberLoginForm;
-use SilverStripe\View\SSViewer;
-use SilverStripe\View\Requirements;
-use SilverStripe\View\ThemeResourceLoader;
-use SilverStripe\Core\Config\Config;
-use SilverStripe\Core\ClassInfo;
-use SilverStripe\Core\Convert;
-use SilverStripe\ORM\ArrayList;
-use SilverStripe\View\ArrayData;
-use SilverStripe\Core\Injector\Injector;
-use SilverStripe\Security\IdentityStore;
-use SilverStripe\ORM\PaginatedList;
-use SilverStripe\Forms;
-use IQnection\BigCommerceApp\Model\Product;
 use IQnection\BigCommerceApp\Model\Category;
-use UncleCheese\Dropzone\FileAttachmentField;
+use IQnection\BigCommerceApp\Model\Product;
+use IQnection\BigCommerceApp\Model\Notification;
+use SilverStripe\Assets\File;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Cookie;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Convert;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Forms;
+use SilverStripe\ORM\ArrayList;
+use SilverStripe\ORM\PaginatedList;
+use SilverStripe\Security\Member;
+use SilverStripe\Security\Security;
+use SilverStripe\Security\MemberAuthenticator\MemberLoginForm;
+use SilverStripe\Security\IdentityStore;
+use SilverStripe\SiteConfig\SiteConfig;
+use SilverStripe\View\SSViewer;
+use SilverStripe\View\Requirements;
+use SilverStripe\View\ThemeResourceLoader;
+use SilverStripe\View\ArrayData;
+use UncleCheese\Dropzone\FileAttachmentField;
 
 class Main extends Controller
 {
@@ -224,6 +225,12 @@ JS
 		$resource = (is_string($resource)) ? $resource : $this->getRequest()->requestVar('resource');
 		switch(strtolower($resource))
 		{
+			case 'files':
+			case 'file':
+			{
+				return $this->searchFiles($search);
+				break;
+			}
 			case 'categories':
 			case 'category':
 			{
@@ -238,6 +245,60 @@ JS
 				break;
 			}
 		}
+	}
+
+	public function searchFiles($search)
+	{
+		$records = File::get();
+		$recordsTotal = $records->Count();
+		$searchTerm = trim($search['value']);
+		if (strlen($searchTerm) >= 3)
+		{
+			if ($searchTerm)
+			{
+				$records = $records->FilterAny([
+					'Name:PartialMatch' => $searchTerm,
+					'Title:PartialMatch' => $searchTerm,
+				]);
+			}
+			$records = $records->Sort('FileFilename','ASC');
+			$finalRecordsTotal = $records->Count();
+			$limit = $this->getRequest()->requestVar('length') ? $this->getRequest()->requestVar('length') : 100;
+			$start = 0;
+			if ($this->getRequest()->requestVar('start'))
+			{
+				$start = $this->getRequest()->requestVar('start');
+			}
+			$records = $records->Limit($limit,$start);
+
+
+			if (Director::is_ajax())
+			{
+				$ajaxData = [
+					'data' => [],
+					'draw' => strtotime('now'),
+					'recordsTotal' => $recordsTotal,
+					'recordsFiltered' => $finalRecordsTotal,
+				];
+				foreach($records as $record)
+				{
+					$ajaxData['data'][] = [
+						'ID' => $record->ID,
+						'Name' => $record->Name,
+						'Title' => $record->Title,
+						'Breadcrumbs' => $record->FileFilename,
+						'Created' => $record->dbObject('Created')->Nice(),
+						'DropdownText' => $record->FileFilename
+					];
+				}
+				header('Content-Type: application/json');
+				print json_encode($ajaxData);
+				die();
+			}
+		}
+		return $this->Customise([
+			'Files' => $records
+		]);
 	}
 
 	public function searchCategories($search)

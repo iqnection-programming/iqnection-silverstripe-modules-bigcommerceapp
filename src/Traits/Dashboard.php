@@ -15,9 +15,9 @@ trait Dashboard
 		'base' => [
 			'css' => [
 				"assets/vendor/bootstrap/css/bootstrap.min.css",
-				"assets/vendor/fonts/circular-std/style.css",
+//				"/assets/vendor/fonts/circular-std/style.css",
 				"assets/libs/css/style.css",
-				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
+//				"assets/vendor/fonts/fontawesome/css/fontawesome-all.css",
 //				"assets/vendor/select2/css/select2.css",
 				"https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css",
 				"css/app.scss"
@@ -92,6 +92,7 @@ trait Dashboard
 			if (preg_match('/^http/',$cssFile))
 			{
 				Requirements::css($cssFile);
+				Requirements::css("iqnection-modules/silverstripe-bigcommerceapp:assets/vendor/fonts/fontawesome/css/fontawesome-all.css");
 				continue;
 			}
 			$cssFile = preg_replace('/\.css|\.scss/','',$cssFile);
@@ -170,7 +171,7 @@ trait Dashboard
 	protected function loadRequirements()
 	{
 		$themeName = $this->Config()->get('theme_name');
-		Requirements::set_combined_files_folder('combined/'.$themeName);
+		Requirements::set_combined_files_folder('combined');
 		$this->loadThemePackages();
 		$this->invokeWithExtensions('updateRequirements');
 	}
